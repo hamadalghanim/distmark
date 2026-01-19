@@ -7,7 +7,7 @@ services:
     build: buyer-frontend/
     ports:
       - "8001:5000" # the internal docker port is 5000 but we expose to 8001
-  seller-database:
+  customers-database:
     image: "postgres:latest"
-  buyer-database:
+  products-database:
     image: "postgres:latest"
