@@ -1,0 +1,13 @@
+services:
+  seller-frontend:
+    build: seller-frontend/
+    ports:
+      - "8000:5000" # the internal docker port is 5000 but we expose to 8000
+  buyer-frontend:
+    build: buyer-frontend/
+    ports:
+      - "8001:5000" # the internal docker port is 5000 but we expose to 8001
+  seller-database:
+    image: "postgres:latest"
+  buyer-database:
+    image: "postgres:latest"
