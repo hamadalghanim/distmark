@@ -8,6 +8,25 @@ services:
     ports:
       - "8001:5000" # the internal docker port is 5000 but we expose to 8001
   customers-database:
-    image: "postgres:latest"
+    build: customers-database/
+    restart: always
+    environment:
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: pass
+      POSTGRES_DB: customers
+    ports:
+      - "5432:5432" # Host port 5432 → Container port 5432
+    volumes:
+      - ./data/customers:/var/lib/postgresql
+
   products-database:
-    image: "postgres:latest"
+    build: products-database/
+    restart: always
+    environment:
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: pass
+      POSTGRES_DB: products
+    ports:
+      - "5433:5432" # Host port 5433 → Container port 5432
+    volumes:
+      - ./data/products:/var/lib/postgresql
