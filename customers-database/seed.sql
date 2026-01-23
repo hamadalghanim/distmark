@@ -1,12 +1,13 @@
-CREATE TABLE IF NOT EXISTS users (
+CREATE TABLE IF NOT EXISTS customers (
     id SERIAL PRIMARY KEY,
     name VARCHAR(50),
-    email VARCHAR(100) UNIQUE
+    email VARCHAR(100) UNIQUE,
+    password VARCHAR(100)
 );
 
 INSERT INTO
-    users (name, email)
+    customers (name, email, password)
 VALUES
-    ('Alpha', 'alpha@example.com'),
-    ('Beta', 'beta@example.com'),
-    ('Gamma', 'gamma@example.com') ON CONFLICT (email) DO NOTHING;
+    ('Alpha', 'alpha@example.com', 'hash1'),
+    ('Beta', 'beta@example.com', 'hunter2'),
+    ('Gamma', 'gamma@example.com', 'test') ON CONFLICT (email) DO NOTHING;

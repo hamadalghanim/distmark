@@ -3,10 +3,20 @@ services:
     build: seller-frontend/
     ports:
       - "8000:5000" # the internal docker port is 5000 but we expose to 8000
+    depends_on:
+      customers-database:
+        condition: service_healthy # Wait for DB to be healthy
+      products-database:
+        condition: service_healthy # Wait for DB to be healthy
   buyer-frontend:
     build: buyer-frontend/
     ports:
       - "8001:5000" # the internal docker port is 5000 but we expose to 8001
+    depends_on:
+      customers-database:
+        condition: service_healthy # Wait for DB to be healthy
+      products-database:
+        condition: service_healthy # Wait for DB to be healthy
   customers-database:
     # to connect to the customers database we use customers-database:5432
     build: customers-database/
@@ -17,6 +27,11 @@ services:
       POSTGRES_DB: customers
     volumes:
       - ./data/customers:/var/lib/postgresql
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U user -d customers" ]
+      interval: 5s
+      timeout: 5s
+      retries: 5
 
   products-database:
     # to connect to the products database we use products-database:5432
@@ -28,13 +43,18 @@ services:
       POSTGRES_DB: products
     volumes:
       - ./data/products:/var/lib/postgresql
-  pgadmin:
-    # pgAdmin service for database testing and management
-    image: dpage/pgadmin4
-    container_name: pgadmin4_container
-    restart: always
-    environment:
-      PGADMIN_DEFAULT_EMAIL: admin@example.com
-      PGADMIN_DEFAULT_PASSWORD: password
-    ports:
-      - "8080:80" # Map host port 8080 to container port 80
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U user -d products" ]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+  # pgadmin:
+  #   # pgAdmin service for database testing and management
+  #   image: dpage/pgadmin4
+  #   container_name: pgadmin4_container
+  #   restart: always
+  #   environment:
+  #     PGADMIN_DEFAULT_EMAIL: admin@example.com
+  #     PGADMIN_DEFAULT_PASSWORD: password
+  #   ports:
+  #     - "8080:80" # Map host port 8080 to container port 80

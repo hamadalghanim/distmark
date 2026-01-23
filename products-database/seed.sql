@@ -1,12 +1,12 @@
-CREATE TABLE IF NOT EXISTS users (
+CREATE TABLE IF NOT EXISTS products (
     id SERIAL PRIMARY KEY,
     name VARCHAR(50),
-    email VARCHAR(100) UNIQUE
+    price DECIMAL(10, 2)
 );
 
 INSERT INTO
-    users (name, email)
+    products (name, price)
 VALUES
-    ('Alpha', 'alpha@example.com'),
-    ('Beta', 'beta@example.com'),
-    ('Gamma', 'gamma@example.com') ON CONFLICT (email) DO NOTHING;
+    ('Product A', 19.99),
+    ('Product B', 29.99),
+    ('Product C', 39.99);
