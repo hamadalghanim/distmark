@@ -2,37 +2,50 @@ package main
 
 import (
 	"bufio"
+	"errors"
 	"fmt"
 	"net"
 	"os"
+	"regexp"
+	"strconv"
 	"strings"
 )
 
-func handle_command(command string) string {
+func handle_command(command string, session_id int) (string, error) {
 
 	reader := bufio.NewReader(os.Stdin)
-	message := ""
 
 	command = strings.TrimSpace(command)
 
 	switch command {
 	case "CreateAccount":
-		message = CreateAccount(reader)
-	case "Login":
+		return CreateAccount(reader), nil
 
+	case "Login":
+		return Login(reader), nil
 	case "Logout":
+		if session_id == 0 {
+			fmt.Println("Need to login first")
+			return "", errors.New("Not logged in")
+		}
 	case "GetSellerRating":
+		return "", nil
 	case "RegisterItemForSale":
+		return "", nil
 	case "ChangeItemPrice":
+		return "", nil
 	case "DisplayItemsForSale":
+		return "", nil
 	default:
-		message = "Unknown Command"
+		return "", errors.New("Not a real command")
 	}
 
-	return message
+	return "", errors.New("Not a real command")
 }
 
 func main() {
+
+	session_id := 0
 	// Connect to the TCP server running on localhost at port 8080.
 	// Ensure the server is running before executing this client code.
 	conn, err := net.Dial("tcp", "localhost:8000")
@@ -57,9 +70,12 @@ func main() {
 		reader := bufio.NewReader(os.Stdin)
 		fmt.Print("\nEnter command: ")
 		command, _ := reader.ReadString('\n')
-		message := ""
-		message = handle_command(command)
 
+		message, error_handle := handle_command(command, session_id)
+		if error_handle != nil {
+			fmt.Println("Error handling command:", error_handle.Error())
+			continue
+		}
 		_, err = conn.Write([]byte(message))
 		if err != nil {
 			fmt.Println("Error writing to server:", err.Error())
@@ -72,6 +88,21 @@ func main() {
 		if err != nil {
 			fmt.Println("Error reading from server:", err.Error())
 			return
+		}
+		if strings.TrimSpace(command) == "Login" {
+			// the buffer will have the session Id
+			re := regexp.MustCompile("[0-9]+")
+			match := re.Find(buffer[:n])
+			if match != nil {
+				id, err := strconv.Atoi(string(match))
+				if err == nil {
+					session_id = id
+				} else {
+					fmt.Println("Failed to parse session id:", err)
+				}
+			} else {
+				fmt.Println("No session id found in server response")
+			}
 		}
 
 		fmt.Printf(string(buffer[:n]))
