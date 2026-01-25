@@ -28,7 +28,7 @@ def seed(products_engine):
             print(
                 f"Current counts - Categories: {category_count}, Sellers: {seller_count}, Items: {item_count}"
             )
-            exit(0)
+            return
 
         print("Database is empty. Starting seed process...")
 
