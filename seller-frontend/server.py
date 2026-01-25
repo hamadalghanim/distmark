@@ -34,7 +34,7 @@ def process_command(cmd, conn):
     if command_name not in mappings:
         conn.send(bytes(f"ERROR: Unknown command '{command_name}'", "utf-8"))
         return
-    mappings[command_name](commands, conn)
+    mappings[command_name](commands, conn, products_session)
 
 
 print(f"Seller Frontend Server listening on port {PORT}...")

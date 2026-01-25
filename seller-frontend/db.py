@@ -59,7 +59,7 @@ class Seller(BaseProducts):
     __tablename__ = "sellers"
     id: Mapped[int] = mapped_column(primary_key=True)
     name: Mapped[str] = mapped_column(String(32))
-    username: Mapped[str] = mapped_column(String(32))
+    username: Mapped[str] = mapped_column(String(32), unique=True)
     password: Mapped[str] = mapped_column(String(32))
     feedback: Mapped[int] = mapped_column(INT, default=0)
     items_sold: Mapped[int] = mapped_column(INT, default=0)
