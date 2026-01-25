@@ -2,8 +2,7 @@
 import socket
 from config import products_engine
 from sqlalchemy.orm import Session
-from sqlalchemy import select
-from db import Item
+import interface
 
 PORT = 5000
 sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -11,6 +10,31 @@ sock.bind(("0.0.0.0", PORT))
 sock.listen(1)
 products_session = Session(products_engine)
 
+
+def process_command(cmd, conn):
+    lines = cmd.strip().split("\n")
+    commands = [line.strip() for line in lines if line.strip()]
+
+    if not commands:
+        conn.send(bytes("ERROR: Empty command", "utf-8"))
+        return
+
+    mappings = {
+        "createaccount": interface.createAccount,
+        "login": interface.login,
+        "logout": interface.logout,
+        "getsellerrating": interface.getSellerRating,
+        "registeritemforsale": interface.registerItemForSale,
+        "changeitemprice": interface.changeItemPrice,
+        "updateunitsforsale": interface.updateUnitsForSale,
+        "displayitemsforsale": interface.displayItemsForSale,
+    }
+    command_name = commands[0].lower()
+
+    if command_name not in mappings:
+        conn.send(bytes(f"ERROR: Unknown command '{command_name}'", "utf-8"))
+        return
+    mappings[command_name](commands, conn)
 
 
 print(f"Seller Frontend Server listening on port {PORT}...")
@@ -31,24 +55,19 @@ while True:
         elif cmd.lower() == "help":
             help_text = (
                 "Available commands:\n"
-                "PING - Check server status\n"
-                "GET_CUSTOMERS - Retrieve all customers\n"
-                "GET_PRODUCTS - Retrieve all products\n"
-                "QUIT - Close the connection\n"
+                "CreateAccount - SETS UP USERNAME+PASSWORD, RETURNS SELLER_ID\n"
+                "Login - LOGIN WITH USERNAME+PASSWORD (starts session)\n"
+                "Logout - ENDS ACTIVE SELLER SESSION\n"
+                "GetSellerRating - RETURNS FEEDBACK FOR CURRENT SELLER\n"
+                "RegisterItemForSale - REGISTER ITEM WITH ATTRIBUTES AND QUANTITY, RETURNS ITEM_ID\n"
+                "ChangeItemPrice - UPDATE ITEM PRICE BY ITEM_ID\n"
+                "UpdateUnitsForSale - REMOVE QUANTITY FROM ITEM_ID\n"
+                "DisplayItemsForSale - DISPLAY ITEMS ON SALE BY CURRENT SELLER\n"
             )
             conn.send(bytes(help_text, "utf-8"))
-        elif cmd.lower() == "ping":
-            conn.send(bytes("pong\n", "utf-8"))
-        elif cmd == "GET_CUSTOMERS":
-            response = "NOT IMPLEMENTED"
-            conn.send(bytes(response + "\n", "utf-8"))
-        elif cmd == "GET_PRODUCTS":
-            stmt = select(Item)
-            results = products_session.scalars(stmt)
-            response = "\n".join([str(row) for row in results])
-            conn.send(bytes(response + "\n", "utf-8"))
         else:
-            conn.send(bytes("Unknown command\n", "utf-8"))
+            process_command(cmd, conn)
+            # conn.send(bytes("Unknown command\n", "utf-8"))
 
     conn.close()
     print(f"Connection from {addr} closed")
