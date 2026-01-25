@@ -18,29 +18,33 @@ func handle_command(command string, session_id int) (string, error) {
 	command = strings.TrimSpace(command)
 
 	switch command {
-	case "CreateAccount":
+	case "createaccount":
 		return CreateAccount(reader), nil
 
-	case "Login":
+	case "login":
 		return Login(reader), nil
-	case "Logout":
+	case "logout":
 		if session_id == 0 {
 			fmt.Println("Need to login first")
 			return "", errors.New("Not logged in")
 		}
-	case "GetSellerRating":
+		return Logout(session_id), nil
+	case "getsellerrating":
+		if session_id == 0 {
+			fmt.Println("Need to login first")
+			return "", errors.New("Not logged in")
+		}
+		return GetSellerRating(session_id), nil
+	case "registeritemforsale":
 		return "", nil
-	case "RegisterItemForSale":
+	case "changeitemprice":
 		return "", nil
-	case "ChangeItemPrice":
-		return "", nil
-	case "DisplayItemsForSale":
+	case "displayitemsforsale":
 		return "", nil
 	default:
 		return "", errors.New("Not a real command")
 	}
 
-	return "", errors.New("Not a real command")
 }
 
 func main() {
@@ -70,6 +74,7 @@ func main() {
 		reader := bufio.NewReader(os.Stdin)
 		fmt.Print("\nEnter command: ")
 		command, _ := reader.ReadString('\n')
+		command = strings.ToLower(command)
 
 		message, error_handle := handle_command(command, session_id)
 		if error_handle != nil {
@@ -89,7 +94,7 @@ func main() {
 			fmt.Println("Error reading from server:", err.Error())
 			return
 		}
-		if strings.TrimSpace(command) == "Login" {
+		if strings.TrimSpace(command) == "login" {
 			// the buffer will have the session Id
 			re := regexp.MustCompile("[0-9]+")
 			match := re.Find(buffer[:n])
@@ -104,7 +109,12 @@ func main() {
 				fmt.Println("No session id found in server response")
 			}
 		}
-
+		if strings.TrimSpace(command) == "Logout" && strings.TrimSpace(string(buffer[:n])) == "logout successful" {
+			session_id = 0
+		}
+		if strings.TrimSpace(string(buffer[:n])) == "Session no longer valid" {
+			session_id = 0
+		}
 		fmt.Printf(string(buffer[:n]))
 	}
 }

@@ -7,7 +7,7 @@ from sqlalchemy.orm import mapped_column
 from sqlalchemy.orm import relationship
 from enum import Enum
 from sqlalchemy import Enum as SQLEnum
-from datetime import datetime
+from datetime import datetime, timezone
 
 
 class BaseProducts(DeclarativeBase):
@@ -80,7 +80,9 @@ class Session(BaseProducts):
     seller_id: Mapped[int] = mapped_column(ForeignKey("sellers.id"))
     seller: Mapped["Seller"] = relationship(back_populates="sessions")
     last_activity: Mapped[datetime] = mapped_column(
-        DateTime, default=datetime.utcnow, onupdate=datetime.utcnow
+        DateTime,
+        default=datetime.now(tz=timezone.utc),
+        onupdate=datetime.now(tz=timezone.utc),
     )
 
     def __repr__(self) -> str:

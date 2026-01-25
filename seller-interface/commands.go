@@ -21,3 +21,10 @@ func Login(reader *bufio.Reader) string {
 	password, _ := reader.ReadString('\n')
 	return "Login\n" + username + "\n" + password + "\n"
 }
+func Logout(session_id int) string {
+	return "Logout\n" + fmt.Sprintf("%d", session_id) + "\n"
+}
+
+func GetSellerRating(session_id int) string {
+	return "GetSellerRating\n" + fmt.Sprintf("%d", session_id) + "\n"
+}
