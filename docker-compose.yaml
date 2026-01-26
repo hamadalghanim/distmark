@@ -48,13 +48,13 @@ services:
       interval: 5s
       timeout: 5s
       retries: 5
-  pgadmin:
-    # pgAdmin service for database testing and management
-    image: dpage/pgadmin4
-    container_name: pgadmin4_container
-    restart: always
-    environment:
-      PGADMIN_DEFAULT_EMAIL: admin@example.com
-      PGADMIN_DEFAULT_PASSWORD: password
-    ports:
-      - "8080:80" # Map host port 8080 to container port 80
+  # pgadmin:
+  #   # pgAdmin service for database testing and management
+  #   image: dpage/pgadmin4
+  #   container_name: pgadmin4_container
+  #   restart: always
+  #   environment:
+  #     PGADMIN_DEFAULT_EMAIL: admin@example.com
+  #     PGADMIN_DEFAULT_PASSWORD: password
+  #   ports:
+  #     - "8080:80" # Map host port 8080 to container port 80

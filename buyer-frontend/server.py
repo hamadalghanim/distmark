@@ -1,15 +1,16 @@
 #!/usr/bin/python
 import socket
-from config import products_engine
+import threading
+from config import products_engine, customers_engine
 from sqlalchemy.orm import Session
 import interface
-import threading
 
 PORT = 5000
 sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 sock.bind(("0.0.0.0", PORT))
 sock.listen(1)
 products_session = Session(products_engine)
+customers_session = Session(customers_engine)
 
 
 def process_command(cmd, conn):
@@ -24,22 +25,19 @@ def process_command(cmd, conn):
         "createaccount": interface.createAccount,
         "login": interface.login,
         "logout": interface.logout,
-        "getsellerrating": interface.getSellerRating,
-        "registeritemforsale": interface.registerItemForSale,
-        "changeitemprice": interface.changeItemPrice,
-        "updateunitsforsale": interface.updateUnitsForSale,
-        "displayitemsforsale": interface.displayItemsForSale,
+        "getitem": interface.getItem,
         "getcategories": interface.getCategories,
+        "searchitemsforsale": interface.searchItemsForSale,
     }
     command_name = commands[0].lower()
 
     if command_name not in mappings:
         conn.send(bytes(f"ERROR: Unknown command '{command_name}'", "utf-8"))
         return
-    mappings[command_name](commands, conn, products_session)
+    mappings[command_name](commands, conn, products_session, customers_session)
 
 
-print(f"Seller Frontend Server listening on port {PORT}...")
+print(f"Customer Frontend Server listening on port {PORT}...")
 
 
 def handle_client(conn, addr):
