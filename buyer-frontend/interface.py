@@ -201,18 +201,33 @@ def saveCart(
     # Clear existing cart items
     customers_session.query(CartItem).filter_by(cart_id=cart.id).delete()
     # Add new items to cart
+    response_lines = []
     try:
         items = items_str.split(",")
         for item_entry in items:
             item_id, quantity = map(int, item_entry.split(":"))
+            # validate item exists in products database with the correct id and quantity
+            product_item = products_session.query(Item).filter_by(id=item_id).first()
+            if product_item is None:
+                response_lines.append(
+                    f"Item ID {item_id} not found in products database (skipped)"
+                )
+                continue
+            if product_item.quantity < quantity:
+                response_lines.append(
+                    f"Not enough quantity for Item ID {item_id} available {product_item.quantity} (skipped)"
+                )
+                continue
             cart_item = CartItem(cart_id=cart.id, item_id=item_id, quantity=quantity)
             customers_session.add(cart_item)
         customers_session.commit()
     except Exception as e:
         conn.send(bytes(f"Database error: {e}", "utf-8"))
         return
-
-    conn.send(bytes("Cart saved successfully", "utf-8"))
+    if response_lines:
+        response_lines.insert(0, "Some items were not added to the cart:")
+    response_lines.append("Cart saved successfully")
+    conn.send(bytes("\n".join(response_lines), "utf-8"))
 
 
 def getCart(
