@@ -67,10 +67,7 @@ func print_menu() {
 		"3. \033[1mLogout\033[0m - Ends active seller session\n" +
 		"4. \033[1mGetItem\033[0m - Returns Item details\n" +
 		"5. \033[1mGetCategories\033[0m - Get a list of categories\n" +
-		"6. \033[1mRegisterItemForSale\033[0m - Register item with attributes and quantity, returns item ID\n" +
-		"7. \033[1mChangeItemPrice\033[0m - Update item price by item ID\n" +
-		"8. \033[1mUpdateUnitsForSale\033[0m - Remove quantity from item ID\n" +
-		"9. \033[1mDisplayItemsForSale\033[0m - Display items on sale by current seller\n" +
+		"6. \033[1mSearchItemsForSale\033[0m - Search items for sale by keywords\n" +
 		"10. \033[1mExit\033[0m or \033[1mQuit\033[0m - Exit the application\n" +
 		"11. \033[1mHelp\033[0m - Show this menu\n")
 }
@@ -105,30 +102,12 @@ func dispatch_command(command string) (string, error) {
 			return "", errors.New("Not logged in")
 		}
 		return GetCategories(), nil
-	case "registeritemforsale", "6":
+	case "searchitemsforsale", "6":
 		if SessionId == 0 {
 			fmt.Println("Need to login first")
 			return "", errors.New("Not logged in")
 		}
-		return RegisterItemForSale(reader), nil
-	case "changeitemprice", "7":
-		if SessionId == 0 {
-			fmt.Println("Need to login first")
-			return "", errors.New("Not logged in")
-		}
-		return ChangeItemPrice(reader), nil
-	case "updateunitsforsale", "8":
-		if SessionId == 0 {
-			fmt.Println("Need to login first")
-			return "", errors.New("Not logged in")
-		}
-		return UpdateUnitsForSale(reader), nil
-	case "displayitemsforsale", "9":
-		if SessionId == 0 {
-			fmt.Println("Need to login first")
-			return "", errors.New("Not logged in")
-		}
-		return DisplayItemsForSale(), nil
+		return SearchItemsForSale(reader), nil
 	case "exit", "quit", "10":
 		fmt.Println("Exiting...")
 		os.Exit(0)
