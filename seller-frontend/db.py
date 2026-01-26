@@ -45,7 +45,7 @@ class Item(BaseProducts):
     feedback: Mapped[int] = mapped_column(INT, default=0)
 
     def __repr__(self) -> str:
-        return f"Item(id={self.id!r}, name={self.name!r}, category={self.category!r}, keywords={self.keywords!r}, condition={self.condition!r}, sale_price={self.sale_price!r}, quantity={self.quantity!r})"
+        return f"Item(id={self.id!r}, name={self.name!r}, category={self.category.name!r}, keywords={self.keywords!r}, condition={self.condition.name!r}, sale_price={self.sale_price}, quantity={self.quantity!r})"
 
 
 class Category(BaseProducts):
