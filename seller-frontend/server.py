@@ -28,6 +28,7 @@ def process_command(cmd, conn):
         "changeitemprice": interface.changeItemPrice,
         "updateunitsforsale": interface.updateUnitsForSale,
         "displayitemsforsale": interface.displayItemsForSale,
+        "getcategories": interface.getCategories
     }
     command_name = commands[0].lower()
 

@@ -35,16 +35,43 @@ func handle_command(command string, session_id int) (string, error) {
 			return "", errors.New("Not logged in")
 		}
 		return GetSellerRating(session_id), nil
+	case "getcategories":
+		if session_id == 0 {
+			fmt.Println("Need to login first")
+			return "", errors.New("Not logged in")
+		}
+		return GetCategories(session_id), nil
 	case "registeritemforsale":
-		return "", nil
+		if session_id == 0 {
+			fmt.Println("Need to login first")
+			return "", errors.New("Not logged in")
+		}
+		return RegisterItemForSale(session_id, reader), nil
 	case "changeitemprice":
-		return "", nil
+		if session_id == 0 {
+			fmt.Println("Need to login first")
+			return "", errors.New("Not logged in")
+		}
+		return ChangeItemPrice(session_id, reader), nil
+	case "updateunitsforsale":
+		if session_id == 0 {
+			fmt.Println("Need to login first")
+			return "", errors.New("Not logged in")
+		}
+		return UpdateUnitsForSale(session_id, reader), nil
 	case "displayitemsforsale":
-		return "", nil
+		if session_id == 0 {
+			fmt.Println("Need to login first")
+			return "", errors.New("Not logged in")
+		}
+		return DisplayItemsForSale(session_id), nil
+	case "exit", "quit":
+		fmt.Println("Exiting...")
+		os.Exit(0)
 	default:
 		return "", errors.New("Not a real command")
 	}
-
+	return "", errors.New("Not a real command")
 }
 
 func main() {
@@ -66,6 +93,7 @@ func main() {
 		"Login - LOGIN WITH USERNAME+PASSWORD (starts session)\n" +
 		"Logout - ENDS ACTIVE SELLER SESSION\n" +
 		"GetSellerRating - RETURNS FEEDBACK FOR CURRENT SELLER\n" +
+		"GetCategories - GET A LIST OF CATEGORIES\n" +
 		"RegisterItemForSale - REGISTER ITEM WITH ATTRIBUTES AND QUANTITY, RETURNS ITEM_ID\n" +
 		"ChangeItemPrice - UPDATE ITEM PRICE BY ITEM_ID\n" +
 		"UpdateUnitsForSale - REMOVE QUANTITY FROM ITEM_ID\n" +
@@ -94,27 +122,32 @@ func main() {
 			fmt.Println("Error reading from server:", err.Error())
 			return
 		}
-		if strings.TrimSpace(command) == "login" {
-			// the buffer will have the session Id
-			re := regexp.MustCompile("[0-9]+")
-			match := re.Find(buffer[:n])
-			if match != nil {
-				id, err := strconv.Atoi(string(match))
-				if err == nil {
-					session_id = id
-				} else {
-					fmt.Println("Failed to parse session id:", err)
-				}
-			} else {
-				fmt.Println("No session id found in server response")
-			}
-		}
-		if strings.TrimSpace(command) == "Logout" && strings.TrimSpace(string(buffer[:n])) == "logout successful" {
-			session_id = 0
-		}
-		if strings.TrimSpace(string(buffer[:n])) == "Session no longer valid" {
-			session_id = 0
-		}
+		handle_post_command(command, buffer, n, &session_id)
 		fmt.Printf(string(buffer[:n]))
+	}
+}
+
+func handle_post_command(command string, buffer []byte, n int, session_id *int) {
+	if strings.TrimSpace(command) == "login" {
+		// the buffer will have the session Id
+		re := regexp.MustCompile("[0-9]+")
+		match := re.Find(buffer[:n])
+		if match != nil {
+			id, err := strconv.Atoi(string(match))
+			if err == nil {
+				*session_id = id
+				return
+			} else {
+				fmt.Println("Failed to parse session id:", err)
+			}
+		} else {
+			fmt.Println("No session id found in server response")
+		}
+	}
+	if strings.TrimSpace(command) == "Logout" && strings.TrimSpace(string(buffer[:n])) == "logout successful" {
+		*session_id = 0
+	}
+	if strings.TrimSpace(string(buffer[:n])) == "Session no longer valid" {
+		*session_id = 0
 	}
 }

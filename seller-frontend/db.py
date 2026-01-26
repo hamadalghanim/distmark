@@ -29,7 +29,13 @@ class Item(BaseProducts):
         String(45)
     )  # 8 characters per word, 5 words + commas
     condition: Mapped[Condition] = mapped_column(
-        SQLEnum(Condition, name="condition_enum"), default=Condition.NEW, nullable=False
+        SQLEnum(
+            Condition,
+            name="condition_enum",
+            validate_strings=True,
+        ),
+        default=Condition.NEW,
+        nullable=False,
     )
     seller_id: Mapped[int] = mapped_column(ForeignKey("sellers.id"))
     seller: Mapped["Seller"] = relationship(back_populates="items")
@@ -39,7 +45,7 @@ class Item(BaseProducts):
     feedback: Mapped[int] = mapped_column(INT, default=0)
 
     def __repr__(self) -> str:
-        return f"Item(id={self.id!r}, name={self.name!r})"
+        return f"Item(id={self.id!r}, name={self.name!r}, category={self.category!r}, keywords={self.keywords!r}, condition={self.condition!r}, sale_price={self.sale_price!r}, quantity={self.quantity!r})"
 
 
 class Category(BaseProducts):
