@@ -1,6 +1,6 @@
 import datetime
 from db import Buyer, Category, Item
-from db import BuyerSession
+from db import BuyerSession, Cart, CartItem
 from typing import List
 import socket
 from sqlalchemy.orm import Session
@@ -184,6 +184,66 @@ def searchItemsForSale(
     conn.send(bytes("\n".join([item.__repr__() for item in items]), "utf-8"))
 
 
+def saveCart(
+    cmd: List[str],
+    conn: socket.socket,
+    products_session: Session,
+    customers_session: Session,
+):
+    # Structure "command name", "session_id", "item_id:quantity,item_id:quantity,..."
+    session_id = cmd[1]
+    session = get_and_validate_session(session_id, conn, customers_session)
+    items_str = cmd[2]
+    if session is None:
+        return
+
+    cart = get_or_create_cart(session.buyer_id, customers_session)
+    # Clear existing cart items
+    customers_session.query(CartItem).filter_by(cart_id=cart.id).delete()
+    # Add new items to cart
+    try:
+        items = items_str.split(",")
+        for item_entry in items:
+            item_id, quantity = map(int, item_entry.split(":"))
+            cart_item = CartItem(cart_id=cart.id, item_id=item_id, quantity=quantity)
+            customers_session.add(cart_item)
+        customers_session.commit()
+    except Exception as e:
+        conn.send(bytes(f"Database error: {e}", "utf-8"))
+        return
+
+    conn.send(bytes("Cart saved successfully", "utf-8"))
+
+
+def getCart(
+    cmd: List[str],
+    conn: socket.socket,
+    products_session: Session,
+    customers_session: Session,
+):
+    # Structure "command name", "session_id"
+    session_id = cmd[1]
+    session = get_and_validate_session(session_id, conn, customers_session)
+    if session is None:
+        return
+
+    cart = get_or_create_cart(session.buyer_id, customers_session)
+    try:
+        cart_items = customers_session.query(CartItem).filter_by(cart_id=cart.id).all()
+    except Exception as e:
+        conn.send(bytes(f"Database error: {e}", "utf-8"))
+        return
+
+    if not cart_items:
+        conn.send(bytes("Remote Cart is empty", "utf-8"))
+        return
+
+    response_lines = [
+        f"Item ID: {item.item_id}, Quantity: {item.quantity}" for item in cart_items
+    ]
+    conn.send(bytes("\n".join(response_lines), "utf-8"))
+
+
 def is_older_than_5_minutes(event_time):
     # Get the current time, ensuring it is timezone-aware (UTC is a good default)
     current_time = datetime.datetime.now(datetime.timezone.utc)
@@ -200,3 +260,12 @@ def is_older_than_5_minutes(event_time):
 
     # Check if the difference is greater than the threshold
     return time_difference > time_threshold
+
+
+def get_or_create_cart(buyer_id: int, customers_session: Session) -> Cart:
+    cart = customers_session.query(Cart).filter_by(buyer_id=buyer_id).first()
+    if cart is None:
+        cart = Cart(buyer_id=buyer_id)
+        customers_session.add(cart)
+        customers_session.commit()
+    return cart

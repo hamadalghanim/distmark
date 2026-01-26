@@ -68,8 +68,13 @@ func print_menu() {
 		"4. \033[1mGetItem\033[0m - Returns Item details\n" +
 		"5. \033[1mGetCategories\033[0m - Get a list of categories\n" +
 		"6. \033[1mSearchItemsForSale\033[0m - Search items for sale by keywords\n" +
-		"10. \033[1mExit\033[0m or \033[1mQuit\033[0m - Exit the application\n" +
-		"11. \033[1mHelp\033[0m - Show this menu\n")
+		"7. \033[1mAddItemToCart\033[0m - Add item to shopping cart\n" +
+		"8. \033[1mRemoveItemFromCart\033[0m - Remove item from shopping cart\n" +
+		"9. \033[1mDisplayCart\033[0m - Display items in shopping cart\n" +
+		"10. \033[1mSaveCart\033[0m - Save the shopping cart\n" +
+		"11. \033[1mClearCart\033[0m - Clear the shopping cart\n" +
+		"12. \033[1mExit\033[0m or \033[1mQuit\033[0m - Exit the application\n" +
+		"14. \033[1mHelp\033[0m - Show this menu\n")
 }
 
 func dispatch_command(command string) (string, error) {
@@ -108,10 +113,41 @@ func dispatch_command(command string) (string, error) {
 			return "", errors.New("Not logged in")
 		}
 		return SearchItemsForSale(reader), nil
-	case "exit", "quit", "10":
+	case "additemtocart", "7":
+		if SessionId == 0 {
+			fmt.Println("Need to login first")
+			return "", errors.New("Not logged in")
+		}
+		return AddItemToCart(reader), nil
+	case "removeitemfromcart", "8":
+		if SessionId == 0 {
+			fmt.Println("Need to login first")
+			return "", errors.New("Not logged in")
+		}
+		return RemoveItemFromCart(reader), nil
+	case "displaycart", "9":
+		if SessionId == 0 {
+			fmt.Println("Need to login first")
+			return "", errors.New("Not logged in")
+		}
+		return DisplayCart(), nil
+	case "savecart", "10":
+		if SessionId == 0 {
+			fmt.Println("Need to login first")
+			return "", errors.New("Not logged in")
+		}
+		return SaveCart(), nil
+	case "clearcart", "11":
+		if SessionId == 0 {
+			fmt.Println("Need to login first")
+			return "", errors.New("Not logged in")
+		}
+		return ClearCart(), nil
+	
+	case "exit", "quit", "12":
 		fmt.Println("Exiting...")
 		os.Exit(0)
-	case "help", "11":
+	case "help", "13":
 		print_menu()
 		return "", nil
 	default:
