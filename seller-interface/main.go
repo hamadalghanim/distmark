@@ -36,8 +36,12 @@ func main() {
 		command = strings.ToLower(strings.TrimSpace(command))
 
 		message, err := dispatch_command(command)
+
 		if err != nil {
 			fmt.Println("Error handling command:", err)
+			continue
+		}
+		if message == "" {
 			continue
 		}
 		_, err = conn.Write([]byte(message))
@@ -99,7 +103,7 @@ func handle_post_command(buffer []byte, n int) {
 			fmt.Println("No session id found in server response")
 		}
 	}
-	if strings.TrimSpace(string(buffer[:n])) == "logout successful" {
+	if strings.TrimSpace(string(buffer[:n])) == "Logout successful" {
 		SessionId = 0
 	}
 	if strings.TrimSpace(string(buffer[:n])) == "Session no longer valid" {

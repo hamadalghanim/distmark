@@ -71,7 +71,8 @@ func print_menu() {
 		"7. \033[1mChangeItemPrice\033[0m - Update item price by item ID\n" +
 		"8. \033[1mUpdateUnitsForSale\033[0m - Remove quantity from item ID\n" +
 		"9. \033[1mDisplayItemsForSale\033[0m - Display items on sale by current seller\n" +
-		"10. \033[1mExit\033[0m or \033[1mQuit\033[0m - Exit the application\n")
+		"10. \033[1mExit\033[0m or \033[1mQuit\033[0m - Exit the application\n" +
+		"11. \033[1mHelp\033[0m - Show this menu\n")
 }
 
 func dispatch_command(command string) (string, error) {
@@ -131,6 +132,9 @@ func dispatch_command(command string) (string, error) {
 	case "exit", "quit", "10":
 		fmt.Println("Exiting...")
 		os.Exit(0)
+	case "help", "11":
+		print_menu()
+		return "", nil
 	default:
 		return "", errors.New("Not a real command")
 	}
