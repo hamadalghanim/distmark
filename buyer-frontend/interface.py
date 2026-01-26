@@ -215,7 +215,7 @@ def saveCart(
                 continue
             if product_item.quantity < quantity:
                 response_lines.append(
-                    f"Not enough quantity for Item ID {item_id} available {product_item.quantity} (skipped)"
+                    f"Not enough quantity for Item ID {item_id} available {product_item.quantity} asked for {quantity} (skipped)"
                 )
                 continue
             cart_item = CartItem(cart_id=cart.id, item_id=item_id, quantity=quantity)
