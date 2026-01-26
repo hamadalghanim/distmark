@@ -42,7 +42,10 @@ def login(cmd: List[str], conn: socket.socket, products_session: Session):
         conn.send(bytes("Invalid username or password", "utf-8"))
         return
     try:
-        sess = TblSession(seller_id=seller.id)
+        sess = TblSession(
+            seller_id=seller.id,
+            last_activity=datetime.datetime.now(datetime.timezone.utc),
+        )
         products_session.add(sess)
         products_session.commit()
     except Exception as e:
