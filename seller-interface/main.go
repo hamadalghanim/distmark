@@ -2,84 +2,21 @@ package main
 
 import (
 	"bufio"
-	"errors"
 	"fmt"
-	"net"
+	"io"
 	"os"
 	"regexp"
 	"strconv"
 	"strings"
 )
 
-func handle_command(command string, session_id int) (string, error) {
+const serverAddress = "localhost:8000"
 
-	reader := bufio.NewReader(os.Stdin)
-
-	command = strings.TrimSpace(command)
-
-	switch command {
-	case "createaccount":
-		return CreateAccount(reader), nil
-
-	case "login":
-		return Login(reader), nil
-	case "logout":
-		if session_id == 0 {
-			fmt.Println("Need to login first")
-			return "", errors.New("Not logged in")
-		}
-		return Logout(session_id), nil
-	case "getsellerrating":
-		if session_id == 0 {
-			fmt.Println("Need to login first")
-			return "", errors.New("Not logged in")
-		}
-		return GetSellerRating(session_id), nil
-	case "getcategories":
-		if session_id == 0 {
-			fmt.Println("Need to login first")
-			return "", errors.New("Not logged in")
-		}
-		return GetCategories(session_id), nil
-	case "registeritemforsale":
-		if session_id == 0 {
-			fmt.Println("Need to login first")
-			return "", errors.New("Not logged in")
-		}
-		return RegisterItemForSale(session_id, reader), nil
-	case "changeitemprice":
-		if session_id == 0 {
-			fmt.Println("Need to login first")
-			return "", errors.New("Not logged in")
-		}
-		return ChangeItemPrice(session_id, reader), nil
-	case "updateunitsforsale":
-		if session_id == 0 {
-			fmt.Println("Need to login first")
-			return "", errors.New("Not logged in")
-		}
-		return UpdateUnitsForSale(session_id, reader), nil
-	case "displayitemsforsale":
-		if session_id == 0 {
-			fmt.Println("Need to login first")
-			return "", errors.New("Not logged in")
-		}
-		return DisplayItemsForSale(session_id), nil
-	case "exit", "quit":
-		fmt.Println("Exiting...")
-		os.Exit(0)
-	default:
-		return "", errors.New("Not a real command")
-	}
-	return "", errors.New("Not a real command")
-}
+var SessionId int = 0
 
 func main() {
 
-	session_id := 0
-	// Connect to the TCP server running on localhost at port 8080.
-	// Ensure the server is running before executing this client code.
-	conn, err := net.Dial("tcp", "localhost:8000")
+	conn, err := connectWithRetry(serverAddress)
 	if err != nil {
 		fmt.Println("Error connecting:", err.Error())
 		os.Exit(1)
@@ -87,55 +24,73 @@ func main() {
 	defer conn.Close() // Ensure the connection is closed when main function exits.
 
 	fmt.Println("Connected to server at " + conn.RemoteAddr().String())
-
-	fmt.Print("Available commands:\n" +
-		"CreateAccount - SETS UP USERNAME+PASSWORD, RETURNS SELLER_ID\n" +
-		"Login - LOGIN WITH USERNAME+PASSWORD (starts session)\n" +
-		"Logout - ENDS ACTIVE SELLER SESSION\n" +
-		"GetSellerRating - RETURNS FEEDBACK FOR CURRENT SELLER\n" +
-		"GetCategories - GET A LIST OF CATEGORIES\n" +
-		"RegisterItemForSale - REGISTER ITEM WITH ATTRIBUTES AND QUANTITY, RETURNS ITEM_ID\n" +
-		"ChangeItemPrice - UPDATE ITEM PRICE BY ITEM_ID\n" +
-		"UpdateUnitsForSale - REMOVE QUANTITY FROM ITEM_ID\n" +
-		"DisplayItemsForSale - DISPLAY ITEMS ON SALE BY CURRENT SELLER\n")
+	print_menu()
 	for {
 		reader := bufio.NewReader(os.Stdin)
 		fmt.Print("\nEnter command: ")
-		command, _ := reader.ReadString('\n')
-		command = strings.ToLower(command)
+		command, err := reader.ReadString('\n')
+		if err != nil {
+			fmt.Println("Error reading input:", err)
+			continue
+		}
+		command = strings.ToLower(strings.TrimSpace(command))
 
-		message, error_handle := handle_command(command, session_id)
-		if error_handle != nil {
-			fmt.Println("Error handling command:", error_handle.Error())
+		message, err := dispatch_command(command)
+		if err != nil {
+			fmt.Println("Error handling command:", err)
 			continue
 		}
 		_, err = conn.Write([]byte(message))
 		if err != nil {
-			fmt.Println("Error writing to server:", err.Error())
-			return
+			fmt.Println("Connection lost:", err)
+			fmt.Println("Attempting to reconnect...")
+
+			conn.Close()
+			newConn, err := connectWithRetry(serverAddress)
+			if err != nil {
+				fmt.Println("Reconnection failed:", err)
+				return
+			}
+			conn = newConn
+			fmt.Println("Reconnected successfully!")
+			continue // Retry the command
 		}
 
-		// Buffer to read response from the server.
 		buffer := make([]byte, 1024)
 		n, err := conn.Read(buffer)
 		if err != nil {
-			fmt.Println("Error reading from server:", err.Error())
-			return
+			if err == io.EOF {
+				fmt.Println("Server closed connection")
+			} else {
+				fmt.Println("Error reading from server:", err)
+			}
+
+			fmt.Println("Attempting to reconnect...")
+			conn.Close()
+			newConn, err := connectWithRetry(serverAddress)
+			if err != nil {
+				fmt.Println("Reconnection failed:", err)
+				return
+			}
+			conn = newConn
+			fmt.Println("Reconnected successfully!")
+			continue
 		}
-		handle_post_command(command, buffer, n, &session_id)
-		fmt.Printf(string(buffer[:n]))
+
+		handle_post_command(buffer, n)
+		fmt.Print(string(buffer[:n]))
 	}
 }
 
-func handle_post_command(command string, buffer []byte, n int, session_id *int) {
-	if strings.TrimSpace(command) == "login" {
+func handle_post_command(buffer []byte, n int) {
+	if strings.HasPrefix(strings.TrimSpace(string(buffer[:n])), "Login successful. Session ID:") {
 		// the buffer will have the session Id
 		re := regexp.MustCompile("[0-9]+")
 		match := re.Find(buffer[:n])
 		if match != nil {
 			id, err := strconv.Atoi(string(match))
 			if err == nil {
-				*session_id = id
+				SessionId = id
 				return
 			} else {
 				fmt.Println("Failed to parse session id:", err)
@@ -144,10 +99,10 @@ func handle_post_command(command string, buffer []byte, n int, session_id *int) 
 			fmt.Println("No session id found in server response")
 		}
 	}
-	if strings.TrimSpace(command) == "Logout" && strings.TrimSpace(string(buffer[:n])) == "logout successful" {
-		*session_id = 0
+	if strings.TrimSpace(string(buffer[:n])) == "logout successful" {
+		SessionId = 0
 	}
 	if strings.TrimSpace(string(buffer[:n])) == "Session no longer valid" {
-		*session_id = 0
+		SessionId = 0
 	}
 }
