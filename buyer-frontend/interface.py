@@ -1,5 +1,5 @@
 import datetime
-from db import Buyer, Category, Item
+from db import Buyer, Category, Item, ItemsBought, Seller
 from db import BuyerSession, Cart, CartItem
 from typing import List
 import socket
@@ -284,3 +284,113 @@ def get_or_create_cart(buyer_id: int, customers_session: Session) -> Cart:
         customers_session.add(cart)
         customers_session.commit()
     return cart
+
+
+def provideFeedback(
+    cmd: List[str],
+    conn: socket.socket,
+    products_session: Session,
+    customers_session: Session,
+):
+    # Structure "command name", "session_id", "item_id", "feedback" (thumbs up or down)
+    session_id = cmd[1]
+    session = get_and_validate_session(session_id, conn, customers_session)
+    if session is None:
+        return
+    # TODO: for later assignments check item if purchased by buyer through ItemsBought table
+    item = products_session.query(Item).filter_by(id=int(cmd[2])).first()
+    if item is None:
+        conn.send(bytes("Item not found", "utf-8"))
+        return
+    feedback = int(cmd[3])  # +1 for thumbs up, -1 for thumbs down
+    item.feedback += feedback
+    item.seller.feedback += feedback
+    try:
+        products_session.add(item)
+        products_session.commit()
+    except Exception as e:
+        conn.send(bytes(f"Database error: {e}", "utf-8"))
+        return
+    conn.send(bytes("Feedback recorded successfully", "utf-8"))
+
+
+def getSellerRating(
+    cmd: List[str],
+    conn: socket.socket,
+    products_session: Session,
+    customers_session: Session,
+):
+    # Structure "command name", "session_id", "seller_id"
+    session_id = cmd[1]
+    session = get_and_validate_session(session_id, conn, customers_session)
+    if session is None:
+        return
+
+    try:
+        seller = products_session.query(Seller).filter_by(id=int(cmd[2])).first()
+    except Exception as e:
+        conn.send(bytes(f"Database error: {e}", "utf-8"))
+        return
+
+    if seller is None:
+        conn.send(bytes("Seller not found", "utf-8"))
+        return
+    conn.send(bytes(f"Seller Rating: {seller.feedback}", "utf-8"))
+
+
+def getBuyerPurchases(
+    cmd: List[str],
+    conn: socket.socket,
+    products_session: Session,
+    customers_session: Session,
+):
+    # Structure "command name", "session_id"
+    session_id = cmd[1]
+    session = get_and_validate_session(session_id, conn, customers_session)
+    if session is None:
+        return
+
+    try:
+        items_bought = (
+            customers_session.query(ItemsBought)
+            .filter_by(buyer_id=session.buyer_id)
+            .all()
+        )
+    except Exception as e:
+        conn.send(bytes(f"Database error: {e}", "utf-8"))
+        return
+
+    if not items_bought:
+        conn.send(bytes("No purchases found", "utf-8"))
+        return
+
+    response_lines = [
+        f"Item ID: {item.item_id}, Quantity: {item.quantity}" for item in items_bought
+    ]
+    conn.send(bytes("\n".join(response_lines), "utf-8"))
+
+
+def makePurchase(
+    cmd: List[str],
+    conn: socket.socket,
+    products_session: Session,
+    customers_session: Session,
+):
+    # Structure "command name", "session_id"
+    session_id = cmd[1]
+    session = get_and_validate_session(session_id, conn, customers_session)
+    if session is None:
+        return
+
+    cart = get_or_create_cart(session.buyer_id, customers_session)
+    try:
+        cart_items = customers_session.query(CartItem).filter_by(cart_id=cart.id).all()
+    except Exception as e:
+        conn.send(bytes(f"Database error: {e}", "utf-8"))
+        return
+
+    if not cart_items:
+        conn.send(bytes("Remote Cart is empty, nothing to purchase", "utf-8"))
+        return
+
+    conn.send(bytes("Not Implemented Yet\n", "utf-8"))

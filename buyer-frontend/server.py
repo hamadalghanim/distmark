@@ -30,6 +30,10 @@ def process_command(cmd, conn):
         "searchitemsforsale": interface.searchItemsForSale,
         "savecart": interface.saveCart,
         "getcart": interface.getCart,
+        "providefeedback": interface.provideFeedback,
+        "getsellerrating": interface.getSellerRating,
+        "getbuyerpurchases": interface.getBuyerPurchases,
+        "makepurchase": interface.makePurchase,
     }
     command_name = commands[0].lower()
 

@@ -105,3 +105,31 @@ func ClearCart() string {
 	fmt.Println("Local cart cleared.")
 	return ""
 }
+func ProvideFeedback(reader *bufio.Reader) string {
+	fmt.Print("Item ID: ")
+	itemID, _ := reader.ReadString('\n')
+	fmt.Print("Feedback (up/down): ")
+	feedback, _ := reader.ReadString('\n')
+	feedback = strings.ToLower(strings.TrimSpace(feedback))
+	if feedback != "up" && feedback != "down" {
+		fmt.Println("Invalid feedback. Please enter 'up' or 'down'.")
+		return ""
+	}
+	if feedback == "up" {
+		feedback = "1"
+	} else {
+		feedback = "0"
+	}
+	return "ProvideFeedback\n" + fmt.Sprintf("%d", SessionId) + "\n" + itemID + "\n" + feedback + "\n"
+}
+func GetSellerRating(reader *bufio.Reader) string {
+	fmt.Print("Seller ID: ")
+	sellerID, _ := reader.ReadString('\n')
+	return "GetSellerRating\n" + fmt.Sprintf("%d", SessionId) + "\n" + sellerID + "\n"
+}
+func GetBuyerPurchases() string {
+	return "GetBuyerPurchases\n" + fmt.Sprintf("%d", SessionId) + "\n"
+}
+func MakePurchase() string {
+	return "MakePurchase\n" + fmt.Sprintf("%d", SessionId) + "\n"
+}

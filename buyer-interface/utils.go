@@ -73,8 +73,12 @@ func print_menu() {
 		"9. \033[1mDisplayCart\033[0m - Display items in shopping cart\n" +
 		"10. \033[1mSaveCart\033[0m - Save the shopping cart\n" +
 		"11. \033[1mClearCart\033[0m - Clear the shopping cart\n" +
-		"12. \033[1mExit\033[0m or \033[1mQuit\033[0m - Exit the application\n" +
-		"14. \033[1mHelp\033[0m - Show this menu\n")
+		"12. \033[1mProvideFeedback\033[0m - Given an item ID, provide a thumbs up or thumbs down for the item\n" +
+		"13. \033[1mGetSellerRating\033[0m - Given a seller ID, return the feedback for the seller\n" +
+		"14. \033[1mGetBuyerPurchases\033[0m - Get a history of item IDs purchased by the buyer of the active session\n" +
+		"15. \033[1mMakePurchase\033[0m - Purchase items in the remote cart\n" +
+		"16. \033[1mExit\033[0m or \033[1mQuit\033[0m - Exit the application\n" +
+		"17. \033[1mHelp\033[0m - Show this menu\n")
 }
 
 func dispatch_command(command string) (string, error) {
@@ -143,11 +147,35 @@ func dispatch_command(command string) (string, error) {
 			return "", errors.New("Not logged in")
 		}
 		return ClearCart(), nil
-	
-	case "exit", "quit", "12":
+
+	case "providefeedback", "12":
+		if SessionId == 0 {
+			fmt.Println("Need to login first")
+			return "", errors.New("Not logged in")
+		}
+		return ProvideFeedback(reader), nil
+	case "getsellerrating", "13":
+		if SessionId == 0 {
+			fmt.Println("Need to login first")
+			return "", errors.New("Not logged in")
+		}
+		return GetSellerRating(reader), nil
+	case "getbuyerpurchases", "14":
+		if SessionId == 0 {
+			fmt.Println("Need to login first")
+			return "", errors.New("Not logged in")
+		}
+		return GetBuyerPurchases(), nil
+	case "makepurchase", "15":
+		if SessionId == 0 {
+			fmt.Println("Need to login first")
+			return "", errors.New("Not logged in")
+		}
+		return MakePurchase(), nil
+	case "exit", "quit", "16":
 		fmt.Println("Exiting...")
 		os.Exit(0)
-	case "help", "13":
+	case "help", "17":
 		print_menu()
 		return "", nil
 	default:
