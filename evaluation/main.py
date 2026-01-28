@@ -4,7 +4,6 @@ from time import time
 
 number_of_clients_per_scenario = [1, 10, 100]
 
-
 def main():
     for scenario in range(3):
         print(f"Starting Scenario {scenario}...")
@@ -13,8 +12,8 @@ def main():
         buyer_threads = []
         start_time = time.time()
         for i in range(clients):
-            seller_thread = threading.Thread(target=run_seller_client)
-            buyer_thread = threading.Thread(target=run_buyer_client)
+            seller_thread = threading.Thread(target=run_seller_client, args=(scenario*i))
+            buyer_thread = threading.Thread(target=run_buyer_client, args=(scenario*i))
             seller_threads.append(seller_thread)
             buyer_threads.append(buyer_thread)
             seller_thread.start()
@@ -39,14 +38,69 @@ if __name__ == "__main__":
     main()
 
 
-def run_seller_client():
+create_account = f"CreateAccount\njeff\nusername__id__\npassword\n"
+login = f"Login\nusername__id__\npassword\n"
+logout = f"Logout\nsession\n"
+
+def run_seller_client(id):
+    create = create_account.replace("__id__", id)
+    log = login.replace("__id__", id)
     tcp_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    tcp_socket.connect(("localhost", 8000))
+    try:
+        tcp_socket.connect(("localhost", 8000))
+        tcp_socket.send(create)
+        tcp_socket.recv(1024) 
+        tcp_socket.send(log)
+        response = tcp_socket.recv(1024).decode("utf-8")
+        
+        if "Session ID:" in response:
+            session_id = response.split("Session ID: ")[1].strip()
+            print(f"Logged in! Session ID for seller {id}: {session_id}")
+            
+            # 4. Perform 997 random operations
+            # for _ in range(998):
+            #     perform_random_op(tcp_socket, session_id)
+            
+            return session_id
+        else:
+            print("Login failed or response format unexpected.")
+            
+    except Exception as e:
+        print(f"Error: {e}")
+    finally:
+        tcp_socket.close()
     # maybe start an account then login then add items, get rating, get items listed
     # Seller client logic to perform 1000 operations
 
 
-def run_buyer_client():
+def run_buyer_client(id):
+    create = create_account.replace("__id__", id)
+    log = login.replace("__id__", id)
     tcp_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    tcp_socket.connect(("localhost", 8001))
+    try:
+        tcp_socket.connect(("localhost", 8001))
+        tcp_socket.send(create)
+        tcp_socket.recv(1024) 
+        tcp_socket.send(log)
+        
+        response = tcp_socket.recv(1024).decode("utf-8")
+        if "Session ID:" in response:
+            session_id = response.split("Session ID: ")[1].strip()
+            print(f"Logged in! Session ID for buyer {id}: {session_id}")
+            logout = session_id.replace()
+            
+            # 4. Perform 997 random operations
+            # for _ in range(998):
+            #     perform_random_op(tcp_socket, session_id)
+            tcp_socket.send(logout)
+            return session_id
+        else:
+            print("Login failed or response format unexpected.")
+            
+    except Exception as e:
+        print(f"Error: {e}")
+    finally:
+        tcp_socket.close()
+    # save session id returned from login
+    # conn.send(bytes(f"Login successful. Session ID: {sess.id}", "utf-8"))
     # register, login then do 998 operations randomly?
