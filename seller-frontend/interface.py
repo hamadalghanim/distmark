@@ -118,101 +118,99 @@ def registerItemForSale(cmd: List[str], conn: socket.socket):
 
 
 def changeItemPrice(cmd: List[str], conn: socket.socket):
-    products_session = Session(products_engine)
+    with  Session(products_engine) as products_session:
 
-    # Structure "command name", "session_id","item_id" "new_price"
-    session_id = cmd[1]
-    session = get_and_validate_session(session_id, conn, products_session)
-    if session is None:
-        return
-    item_id = cmd[2]
-    new_price = cmd[3]
-    try:
-        item = (
-            products_session.query(Item)
-            .filter_by(id=int(item_id), seller_id=session.seller_id)
-            .first()
-        )
-    except Exception as e:
-        conn.send(bytes(f"Database error: {e}", "utf-8"))
-        return
-    if item is None:
-        conn.send(bytes("Item not found", "utf-8"))
-        return
-    try:
-        item.sale_price = float(new_price)
-        products_session.add(item)
-        products_session.commit()
-    except Exception as e:
-        products_session.rollback()
+        # Structure "command name", "session_id","item_id" "new_price"
+        session_id = cmd[1]
+        session = get_and_validate_session(session_id, conn, products_session)
+        if session is None:
+            return
+        item_id = cmd[2]
+        new_price = cmd[3]
+        try:
+            item = (
+                products_session.query(Item)
+                .filter_by(id=int(item_id), seller_id=session.seller_id)
+                .first()
+            )
+        except Exception as e:
+            conn.send(bytes(f"Database error: {e}", "utf-8"))
+            return
+        if item is None:
+            conn.send(bytes("Item not found", "utf-8"))
+            return
+        try:
+            item.sale_price = float(new_price)
+            products_session.add(item)
+            products_session.commit()
+        except Exception as e:
+            products_session.rollback()
 
-        conn.send(bytes(f"Database error: {e}", "utf-8"))
-        return
-    conn.send(bytes(f"Item price updated to: {item.sale_price}", "utf-8"))
+            conn.send(bytes(f"Database error: {e}", "utf-8"))
+            return
+        conn.send(bytes(f"Item price updated to: {item.sale_price}", "utf-8"))
 
 
 def updateUnitsForSale(cmd: List[str], conn: socket.socket):
-    products_session = Session(products_engine)
-
-    # Structure "command name", "session_id","item_id" "new_qty"
-    session_id = cmd[1]
-    session = get_and_validate_session(session_id, conn, products_session)
-    if session is None:
-        return
-    item_id = cmd[2]
-    new_qty = cmd[3]
-    try:
-        item = (
-            products_session.query(Item)
-            .filter_by(id=int(item_id), seller_id=session.seller_id)
-            .first()
-        )
-    except Exception as e:
-        conn.send(bytes(f"Database error: {e}", "utf-8"))
-        return
-    if item is None:
-        conn.send(bytes("Item not found", "utf-8"))
-        return
-    try:
-        item.quantity = int(new_qty)
-        products_session.add(item)
-        products_session.commit()
-    except Exception as e:
-        products_session.rollback()
-        conn.send(bytes(f"Database error: {e}", "utf-8"))
-        return
-    conn.send(bytes(f"Item quantity updated to: {item.quantity}", "utf-8"))
+    with  Session(products_engine) as products_session:
+        # Structure "command name", "session_id","item_id" "new_qty"
+        session_id = cmd[1]
+        session = get_and_validate_session(session_id, conn, products_session)
+        if session is None:
+            return
+        item_id = cmd[2]
+        new_qty = cmd[3]
+        try:
+            item = (
+                products_session.query(Item)
+                .filter_by(id=int(item_id), seller_id=session.seller_id)
+                .first()
+            )
+        except Exception as e:
+            conn.send(bytes(f"Database error: {e}", "utf-8"))
+            return
+        if item is None:
+            conn.send(bytes("Item not found", "utf-8"))
+            return
+        try:
+            item.quantity = int(new_qty)
+            products_session.add(item)
+            products_session.commit()
+        except Exception as e:
+            products_session.rollback()
+            conn.send(bytes(f"Database error: {e}", "utf-8"))
+            return
+        conn.send(bytes(f"Item quantity updated to: {item.quantity}", "utf-8"))
 
 
 def displayItemsForSale(cmd: List[str], conn: socket.socket):
-    products_session = Session(products_engine)
-
-    # Structure "command name", "session_id"
-    session_id = cmd[1]
-    session = get_and_validate_session(session_id, conn, products_session)
-    if session is None:
-        return
-    try:
-        items = (
-            products_session.query(Item).filter_by(seller_id=session.seller_id).all()
-        )
-    except Exception as e:
-        conn.send(bytes(f"Database error: {e}", "utf-8"))
-        return
-    if not items:
-        conn.send(bytes("No items found", "utf-8"))
-        return
-    conn.send(bytes("\n".join([item.__repr__() for item in items]), "utf-8"))
+    with  Session(products_engine) as products_session:
+        # Structure "command name", "session_id"
+        session_id = cmd[1]
+        session = get_and_validate_session(session_id, conn, products_session)
+        if session is None:
+            return
+        try:
+            items = (
+                products_session.query(Item).filter_by(seller_id=session.seller_id).all()
+            )
+        except Exception as e:
+            conn.send(bytes(f"Database error: {e}", "utf-8"))
+            return
+        if not items:
+            conn.send(bytes("No items found", "utf-8"))
+            return
+        conn.send(bytes("\n".join([item.__repr__() for item in items]), "utf-8"))
 
 
 def getCategories(cmd: List[str], conn: socket.socket):
-    products_session = Session(products_engine)
-    session_id = cmd[1]
-    session = get_and_validate_session(session_id, conn, products_session)
-    if session is None:
-        return
-    categories = products_session.query(Category).all()
-    conn.send(bytes("\n".join([item.__repr__() for item in categories]), "utf-8"))
+    with  Session(products_engine) as products_session:
+        session_id = cmd[1]
+        session = get_and_validate_session(session_id, conn, products_session)
+        if session is None:
+            return
+        categories = products_session.query(Category).all()
+        conn.send(bytes("\n".join([item.__repr__() for item in categories]), "utf-8"))
 
 
 def get_and_validate_session(

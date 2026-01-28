@@ -3,7 +3,7 @@ from db import BaseProducts
 from seed import seed
 
 products_engine = create_engine(
-    "postgresql+psycopg2://user:pass@products-database:5432/products", echo=True
+    "postgresql+psycopg2://user:pass@products-database:5432/products", pool_size=20, max_overflow=0
 )
 
 seed(products_engine)

@@ -32,10 +32,8 @@ def createAccount(
 def login(
     cmd: List[str],
     conn: socket.socket,
-
 ):
     # Structure "command name", "username", "password" MAYBE put this in class
-
     with Session(customers_engine) as customers_session:
         username = cmd[1]
         password = cmd[2]
