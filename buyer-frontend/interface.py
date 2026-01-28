@@ -21,6 +21,7 @@ def createAccount(
         customers_session.add(obj)
         customers_session.commit()
     except Exception as e:
+        customers_session.rollback()
         conn.send(bytes(f"Database error: {e}", "utf-8"))
         return
 
@@ -57,6 +58,7 @@ def login(
         customers_session.add(sess)
         customers_session.commit()
     except Exception as e:
+        customers_session.rollback()
         conn.send(bytes(f"Database error: {e}", "utf-8"))
         return
 
@@ -80,6 +82,7 @@ def logout(
         customers_session.delete(session)
         customers_session.commit()
     except Exception as e:
+        customers_session.rollback()
         conn.send(bytes(f"Database error: {e}", "utf-8"))
         return
 
@@ -148,6 +151,7 @@ def get_and_validate_session(
         customers_session.commit()
         print("updated last activity for session")
     except Exception as e:
+        customers_session.rollback()
         conn.send(bytes(f"Database error: {e}", "utf-8"))
         return
 
@@ -197,12 +201,12 @@ def saveCart(
     if session is None:
         return
 
-    cart = get_or_create_cart(session.buyer_id, customers_session)
-    # Clear existing cart items
-    customers_session.query(CartItem).filter_by(cart_id=cart.id).delete()
     # Add new items to cart
     response_lines = []
     try:
+        cart = get_or_create_cart(session.buyer_id, customers_session)
+        # Clear existing cart items
+        customers_session.query(CartItem).filter_by(cart_id=cart.id).delete()
         items = items_str.split(",")
         for item_entry in items:
             item_id, quantity = map(int, item_entry.split(":"))
@@ -222,6 +226,7 @@ def saveCart(
             customers_session.add(cart_item)
         customers_session.commit()
     except Exception as e:
+        customers_session.rollback()
         conn.send(bytes(f"Database error: {e}", "utf-8"))
         return
     if response_lines:
@@ -242,10 +247,11 @@ def getCart(
     if session is None:
         return
 
-    cart = get_or_create_cart(session.buyer_id, customers_session)
     try:
+        cart = get_or_create_cart(session.buyer_id, customers_session)
         cart_items = customers_session.query(CartItem).filter_by(cart_id=cart.id).all()
     except Exception as e:
+        customers_session.rollback()
         conn.send(bytes(f"Database error: {e}", "utf-8"))
         return
 
@@ -309,6 +315,7 @@ def provideFeedback(
         products_session.add(item)
         products_session.commit()
     except Exception as e:
+        products_session.rollback()
         conn.send(bytes(f"Database error: {e}", "utf-8"))
         return
     conn.send(bytes("Feedback recorded successfully", "utf-8"))
@@ -381,11 +388,11 @@ def makePurchase(
     session = get_and_validate_session(session_id, conn, customers_session)
     if session is None:
         return
-
-    cart = get_or_create_cart(session.buyer_id, customers_session)
     try:
+        cart = get_or_create_cart(session.buyer_id, customers_session)
         cart_items = customers_session.query(CartItem).filter_by(cart_id=cart.id).all()
     except Exception as e:
+        customers_session.rollback()
         conn.send(bytes(f"Database error: {e}", "utf-8"))
         return
 

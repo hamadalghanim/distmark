@@ -18,6 +18,7 @@ def createAccount(
         products_session.add(obj)
         products_session.commit()
     except Exception as e:
+        products_session.rollback()
         conn.send(bytes(f"Database error: {e}", "utf-8"))
         return
 
@@ -49,6 +50,7 @@ def login(cmd: List[str], conn: socket.socket, products_session: Session):
         products_session.add(sess)
         products_session.commit()
     except Exception as e:
+        products_session.rollback()
         conn.send(bytes(f"Database error: {e}", "utf-8"))
         return
 
@@ -67,6 +69,7 @@ def logout(cmd: List[str], conn: socket.socket, products_session: Session):
         products_session.delete(session)
         products_session.commit()
     except Exception as e:
+        products_session.rollback()
         conn.send(bytes(f"Database error: {e}", "utf-8"))
         return
 
@@ -101,6 +104,7 @@ def registerItemForSale(cmd: List[str], conn: socket.socket, products_session: S
         products_session.add(item)
         products_session.commit()
     except Exception as e:
+        products_session.rollback()
         conn.send(bytes(f"Database error: {e}", "utf-8"))
 
     conn.send(bytes(f"Item registered with ID: {item.id}", "utf-8"))
@@ -131,6 +135,8 @@ def changeItemPrice(cmd: List[str], conn: socket.socket, products_session: Sessi
         products_session.add(item)
         products_session.commit()
     except Exception as e:
+        products_session.rollback()
+
         conn.send(bytes(f"Database error: {e}", "utf-8"))
         return
     conn.send(bytes(f"Item price updated to: {item.sale_price}", "utf-8"))
@@ -161,6 +167,7 @@ def updateUnitsForSale(cmd: List[str], conn: socket.socket, products_session: Se
         products_session.add(item)
         products_session.commit()
     except Exception as e:
+        products_session.rollback()
         conn.send(bytes(f"Database error: {e}", "utf-8"))
         return
     conn.send(bytes(f"Item quantity updated to: {item.quantity}", "utf-8"))
@@ -219,6 +226,7 @@ def get_and_validate_session(
         products_session.commit()
         print("updated last activity for session")
     except Exception as e:
+        products_session.rollback()
         conn.send(bytes(f"Database error: {e}", "utf-8"))
         return
 
