@@ -9,8 +9,6 @@ PORT = 5000
 sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 sock.bind(("0.0.0.0", PORT))
 sock.listen(1)
-products_session = Session(products_engine)
-customers_session = Session(customers_engine)
 
 
 def process_command(cmd, conn):
@@ -40,7 +38,7 @@ def process_command(cmd, conn):
     if command_name not in mappings:
         conn.send(bytes(f"ERROR: Unknown command '{command_name}'", "utf-8"))
         return
-    mappings[command_name](commands, conn, products_session, customers_session)
+    mappings[command_name](commands, conn)
 
 
 print(f"Customer Frontend Server listening on port {PORT}...")
