@@ -55,6 +55,7 @@ def login(
                 buyer_id=buyer.id,
                 last_activity=datetime.datetime.now(datetime.timezone.utc),
             )
+            sess.cart = Cart(buyer_id=buyer.id)
             customers_session.add(sess)
             customers_session.commit()
         except Exception as e:
@@ -193,53 +194,99 @@ def saveCart(
     conn: socket.socket,
 ):
     with Session(customers_engine) as customers_session:
-        with Session(products_engine) as products_session:
-            # Structure "command name", "session_id", "item_id:quantity,item_id:quantity,..."
-            session_id = cmd[1]
-            session = get_and_validate_session(session_id, conn, customers_session)
-            items_str = cmd[2]
-            if session is None:
-                return
+        # Structure "command name", "session_id"
+        session_id = cmd[1]
+        session = get_and_validate_session(session_id, conn, customers_session)
+        if session is None:
+            return
+        all_session_carts = customers_session.query(Cart).filter_by(
+            buyer_id=session.buyer_id, saved=True
+        )
+        for sc in all_session_carts:
+            sc.saved = False
 
-            # Add new items to cart
-            response_lines = []
-            try:
-                cart = get_or_create_cart(session.buyer_id, customers_session)
-                # Clear existing cart items
-                customers_session.query(CartItem).filter_by(cart_id=cart.id).delete()
-                items = items_str.split(",")
-                for item_entry in items:
-                    item_id, quantity = map(int, item_entry.split(":"))
-                    # validate item exists in products database with the correct id and quantity
-                    product_item = (
-                        products_session.query(Item).filter_by(id=item_id).first()
-                    )
-                    if product_item is None:
-                        response_lines.append(
-                            f"Item ID {item_id} not found in products database (skipped)"
-                        )
-                        continue
-                    if product_item.quantity < quantity:
-                        response_lines.append(
-                            f"Not enough quantity for Item ID {item_id} available {product_item.quantity} asked for {quantity} (skipped)"
-                        )
-                        continue
-                    cart_item = CartItem(
-                        cart_id=cart.id, item_id=item_id, quantity=quantity
-                    )
-                    customers_session.add(cart_item)
+        if session.cart is None:
+            session.cart = Cart(
+                buyer_id=session.buyer_id, buyer_session_id=session.id, saved=True
+            )
+        else:
+            session.cart.saved = True
+
+        customers_session.add(session)
+        try:
+            customers_session.commit()
+        except Exception as e:
+            customers_session.rollback()
+            conn.send(bytes(f"Database error: {e}", "utf-8"))
+            return
+        conn.send(bytes("Cart saved successfully", "utf-8"))
+
+
+def addItemToCart(
+    cmd: List[str],
+    conn: socket.socket,
+):
+    with Session(customers_engine) as customers_session:
+        # Structure "command name", "session_id", "item_id", "quantity"
+        session_id = cmd[1]
+        session = get_and_validate_session(session_id, conn, customers_session)
+        if session is None:
+            return
+        item_id = int(cmd[2])
+        quantity = int(cmd[3])
+        try:
+            cart = get_or_create_cart(session, customers_session)
+            cart_item = (
+                customers_session.query(CartItem)
+                .filter_by(cart_id=cart.id, item_id=item_id)
+                .first()
+            )
+            if cart_item:
+                cart_item.quantity += quantity
+            else:
+                cart_item = CartItem(
+                    cart_id=cart.id, item_id=item_id, quantity=quantity
+                )
+                customers_session.add(cart_item)
+            customers_session.commit()
+        except Exception as e:
+            customers_session.rollback()
+            conn.send(bytes(f"Database error: {e}", "utf-8"))
+            return
+        conn.send(bytes("Item added to cart successfully", "utf-8"))
+
+
+def removeItemFromCart(
+    cmd: List[str],
+    conn: socket.socket,
+):
+    with Session(customers_engine) as customers_session:
+        # Structure "command name", "session_id", "item_id"
+        session_id = cmd[1]
+        session = get_and_validate_session(session_id, conn, customers_session)
+        if session is None:
+            return
+        item_id = int(cmd[2])
+        try:
+            cart = get_or_create_cart(session, customers_session)
+            cart_item = (
+                customers_session.query(CartItem)
+                .filter_by(cart_id=cart.id, item_id=item_id)
+                .first()
+            )
+            if cart_item:
+                customers_session.delete(cart_item)
                 customers_session.commit()
-            except Exception as e:
-                customers_session.rollback()
-                conn.send(bytes(f"Database error: {e}", "utf-8"))
-                return
-            if response_lines:
-                response_lines.insert(0, "Some items were not added to the cart:")
-            response_lines.append("Cart saved successfully")
-            conn.send(bytes("\n".join(response_lines), "utf-8"))
+                conn.send(bytes("Item removed from cart successfully", "utf-8"))
+            else:
+                conn.send(bytes("Item not found in cart", "utf-8"))
+        except Exception as e:
+            customers_session.rollback()
+            conn.send(bytes(f"Database error: {e}", "utf-8"))
+            return
 
 
-def getCart(
+def clearCart(
     cmd: List[str],
     conn: socket.socket,
 ):
@@ -249,9 +296,31 @@ def getCart(
         session = get_and_validate_session(session_id, conn, customers_session)
         if session is None:
             return
+        try:
+            cart = get_or_create_cart(session, customers_session)
+            customers_session.query(CartItem).filter_by(cart_id=cart.id).delete()
+            customers_session.commit()
+        except Exception as e:
+            customers_session.rollback()
+            conn.send(bytes(f"Database error: {e}", "utf-8"))
+            return
+        conn.send(bytes("Cart cleared successfully", "utf-8"))
+
+
+def getCart(
+    cmd: List[str],
+    conn: socket.socket,
+):
+    with Session(customers_engine) as customers_session:
+        # Structure "command name", "session_id"
+        response_lines = []
+        session_id = cmd[1]
+        session = get_and_validate_session(session_id, conn, customers_session)
+        if session is None:
+            return
 
         try:
-            cart = get_or_create_cart(session.buyer_id, customers_session)
+            cart = get_or_create_cart(session, customers_session)
             cart_items = (
                 customers_session.query(CartItem).filter_by(cart_id=cart.id).all()
             )
@@ -260,13 +329,33 @@ def getCart(
             conn.send(bytes(f"Database error: {e}", "utf-8"))
             return
 
-        if not cart_items:
-            conn.send(bytes("Remote Cart is empty", "utf-8"))
+        try:
+            active_cart = customers_session.query(Cart).filter_by(
+                buyer_id=session.buyer_id, saved=True
+            )
+        except Exception as e:
+            customers_session.rollback()
+            conn.send(bytes(f"Database error: {e}", "utf-8"))
             return
+        saved_cart = active_cart.first()
+        response_lines.append(
+            "Session Cart (Saved)" if saved_cart == cart else "Session Cart"
+        )
+        for item in cart_items:
+            response_lines.append(f"Item ID: {item.item_id}, Quantity: {item.quantity}")
+        if cart_items == []:
+            response_lines.append("Cart is empty")
 
-        response_lines = [
-            f"Item ID: {item.item_id}, Quantity: {item.quantity}" for item in cart_items
-        ]
+        if saved_cart is not None and saved_cart != cart:
+            response_lines.append("Saved Cart")
+            saved_cart_items = (
+                customers_session.query(CartItem).filter_by(cart_id=saved_cart.id).all()
+            )
+            for item in saved_cart_items:
+                response_lines.append(
+                    f"Item ID: {item.item_id}, Quantity: {item.quantity}"
+                )
+
         conn.send(bytes("\n".join(response_lines), "utf-8"))
 
 
@@ -288,10 +377,14 @@ def is_older_than_5_minutes(event_time):
     return time_difference > time_threshold
 
 
-def get_or_create_cart(buyer_id: int, customers_session: Session) -> Cart:
-    cart = customers_session.query(Cart).filter_by(buyer_id=buyer_id).first()
+def get_or_create_cart(session: BuyerSession, customers_session: Session) -> Cart:
+    cart = (
+        customers_session.query(Cart)
+        .filter_by(buyer_id=session.buyer_id, buyer_session_id=session.id)
+        .first()
+    )
     if cart is None:
-        cart = Cart(buyer_id=buyer_id)
+        cart = Cart(buyer_id=session.buyer_id, buyer_session_id=session.id)
         customers_session.add(cart)
         customers_session.commit()
     return cart
@@ -395,7 +488,7 @@ def makePurchase(
         if session is None:
             return
         try:
-            cart = get_or_create_cart(session.buyer_id, customers_session)
+            cart = get_or_create_cart(session, customers_session)
             cart_items = (
                 customers_session.query(CartItem).filter_by(cart_id=cart.id).all()
             )

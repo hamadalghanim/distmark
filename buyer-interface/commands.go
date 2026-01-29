@@ -3,7 +3,6 @@ package main
 import (
 	"bufio"
 	"fmt"
-	"strconv"
 	"strings"
 )
 
@@ -54,12 +53,7 @@ func AddItemToCart(reader *bufio.Reader) string {
 	item_id, _ := reader.ReadString('\n')
 	fmt.Print("Quantity: ")
 	quantity, _ := reader.ReadString('\n')
-	// add to local cart
-	id, _ := strconv.Atoi(strings.TrimSpace(item_id))
-	qty, _ := strconv.Atoi(strings.TrimSpace(quantity))
-	LocalCart.AddToCart(id, qty)
-	fmt.Println("Item added to local cart.")
-	return ""
+	return "AddItemToCart\n" + fmt.Sprintf("%d", SessionId) + "\n" + item_id + "\n" + quantity + "\n"
 }
 
 func RemoveItemFromCart(reader *bufio.Reader) string {
@@ -67,43 +61,18 @@ func RemoveItemFromCart(reader *bufio.Reader) string {
 	item_id, _ := reader.ReadString('\n')
 	fmt.Print("Quantity: ")
 	quantity, _ := reader.ReadString('\n')
-	// remove from local cart
-	id, _ := strconv.Atoi(strings.TrimSpace(item_id))
-	qty, _ := strconv.Atoi(strings.TrimSpace(quantity))
-	LocalCart.RemoveFromCart(id, qty)
-	fmt.Println("Item removed from local cart.")
-	return ""
+	return "RemoveItemFromCart\n" + fmt.Sprintf("%d", SessionId) + "\n" + item_id + "\n" + quantity + "\n"
 }
 
 func DisplayCart() string {
-	// display local cart
-	if len(LocalCart) == 0 {
-		fmt.Println("Local cart is empty.")
-	} else {
-		fmt.Println("Local Cart Contents:")
-		for _, item := range LocalCart {
-			fmt.Printf("Item ID: %d, Quantity: %d\n", item.ItemID, item.Quantity)
-		}
-	}
-	fmt.Println("\nRemote Cart Contents:")
 	return "getcart\n" + fmt.Sprintf("%d", SessionId) + "\n"
 }
 
 func SaveCart() string {
-	// command session_id list of items and quantities
-	if len(LocalCart) == 0 {
-		fmt.Println("Local cart is empty. Nothing to save.")
-		return ""
-	}
-	fmt.Println("Saving local cart to server...")
-
-	return "SaveCart\n" + fmt.Sprintf("%d", SessionId) + "\n" + LocalCart.buildCartItemsString() + "\n"
+	return "SaveCart\n" + fmt.Sprintf("%d", SessionId) + "\n"
 }
 func ClearCart() string {
-	// clear local cart
-	LocalCart.ClearCart()
-	fmt.Println("Local cart cleared.")
-	return ""
+	return "ClearCart\n" + fmt.Sprintf("%d", SessionId) + "\n"
 }
 func ProvideFeedback(reader *bufio.Reader) string {
 	fmt.Print("Item ID: ")
@@ -118,7 +87,7 @@ func ProvideFeedback(reader *bufio.Reader) string {
 	if feedback == "up" {
 		feedback = "1"
 	} else {
-		feedback = "0"
+		feedback = "-1"
 	}
 	return "ProvideFeedback\n" + fmt.Sprintf("%d", SessionId) + "\n" + itemID + "\n" + feedback + "\n"
 }

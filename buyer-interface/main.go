@@ -13,7 +13,6 @@ import (
 const serverAddress = "localhost:8001"
 
 var SessionId int = 0
-var LocalCart Cart = make(Cart)
 
 func main() {
 

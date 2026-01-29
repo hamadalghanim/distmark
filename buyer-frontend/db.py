@@ -135,6 +135,9 @@ class Cart(BaseCustomers):
     items: Mapped[List["CartItem"]] = relationship(
         back_populates="cart", cascade="all, delete-orphan"
     )
+    buyer_session_id: Mapped[int] = mapped_column(ForeignKey("buyer_sessions.id"))
+    session: Mapped["BuyerSession"] = relationship(back_populates="cart")
+    saved: Mapped[bool] = mapped_column(default=False)
 
     def __repr__(self) -> str:
         return f"Cart(id={self.id!r}, buyer_id={self.buyer_id!r})"
@@ -168,6 +171,9 @@ class BuyerSession(BaseCustomers):
     id: Mapped[int] = mapped_column(primary_key=True)
     buyer_id: Mapped[int] = mapped_column(ForeignKey("buyers.id"))
     buyer: Mapped["Buyer"] = relationship(back_populates="sessions")
+    cart: Mapped["Cart"] = relationship(
+        back_populates="session", uselist=False, cascade="all, delete-orphan"
+    )
     last_activity: Mapped[datetime] = mapped_column(
         DateTime,
         default=datetime.now(tz=timezone.utc),
