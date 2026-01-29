@@ -7,9 +7,8 @@ from sqlalchemy.orm import Session
 
 from config import products_engine
 
-def createAccount(
-    cmd: List[str], conn: socket.socket
-) -> None:
+
+def createAccount(cmd: List[str], conn: socket.socket) -> None:
     # Structure "command name", "name", "username", "password" MAYBE put this in class
     with Session(products_engine) as products_session:
         name = cmd[1]
@@ -29,8 +28,7 @@ def createAccount(
 
 def login(cmd: List[str], conn: socket.socket):
     # Structure "command name", "username", "password" MAYBE put this in class
-    with  Session(products_engine) as products_session:
-
+    with Session(products_engine) as products_session:
         username = cmd[1]
         password = cmd[2]
         try:
@@ -61,9 +59,8 @@ def login(cmd: List[str], conn: socket.socket):
         conn.send(bytes(f"Login successful. Session ID: {sess.id}", "utf-8"))
 
 
-
 def logout(cmd: List[str], conn: socket.socket):
-    with  Session(products_engine) as products_session:
+    with Session(products_engine) as products_session:
         # Structure "command name", "session_id" MAYBE put this in class
         session_id = cmd[1]
         session = get_and_validate_session(session_id, conn, products_session)
@@ -81,7 +78,7 @@ def logout(cmd: List[str], conn: socket.socket):
 
 
 def getSellerRating(cmd: List[str], conn: socket.socket):
-    with  Session(products_engine) as products_session:
+    with Session(products_engine) as products_session:
         # Structure "command name", "session_id" MAYBE put this in class
         session_id = cmd[1]
         session = get_and_validate_session(session_id, conn, products_session)
@@ -91,8 +88,7 @@ def getSellerRating(cmd: List[str], conn: socket.socket):
 
 
 def registerItemForSale(cmd: List[str], conn: socket.socket):
-    with  Session(products_engine) as products_session:
-
+    with Session(products_engine) as products_session:
         # Structure "command name", "session_id","item name","category_id", "Keywords", "condition", "price", "qty"
         session_id = cmd[1]
         session = get_and_validate_session(session_id, conn, products_session)
@@ -118,8 +114,7 @@ def registerItemForSale(cmd: List[str], conn: socket.socket):
 
 
 def changeItemPrice(cmd: List[str], conn: socket.socket):
-    with  Session(products_engine) as products_session:
-
+    with Session(products_engine) as products_session:
         # Structure "command name", "session_id","item_id" "new_price"
         session_id = cmd[1]
         session = get_and_validate_session(session_id, conn, products_session)
@@ -152,7 +147,7 @@ def changeItemPrice(cmd: List[str], conn: socket.socket):
 
 
 def updateUnitsForSale(cmd: List[str], conn: socket.socket):
-    with  Session(products_engine) as products_session:
+    with Session(products_engine) as products_session:
         # Structure "command name", "session_id","item_id" "new_qty"
         session_id = cmd[1]
         session = get_and_validate_session(session_id, conn, products_session)
@@ -184,7 +179,7 @@ def updateUnitsForSale(cmd: List[str], conn: socket.socket):
 
 
 def displayItemsForSale(cmd: List[str], conn: socket.socket):
-    with  Session(products_engine) as products_session:
+    with Session(products_engine) as products_session:
         # Structure "command name", "session_id"
         session_id = cmd[1]
         session = get_and_validate_session(session_id, conn, products_session)
@@ -192,7 +187,9 @@ def displayItemsForSale(cmd: List[str], conn: socket.socket):
             return
         try:
             items = (
-                products_session.query(Item).filter_by(seller_id=session.seller_id).all()
+                products_session.query(Item)
+                .filter_by(seller_id=session.seller_id)
+                .all()
             )
         except Exception as e:
             conn.send(bytes(f"Database error: {e}", "utf-8"))
@@ -204,7 +201,7 @@ def displayItemsForSale(cmd: List[str], conn: socket.socket):
 
 
 def getCategories(cmd: List[str], conn: socket.socket):
-    with  Session(products_engine) as products_session:
+    with Session(products_engine) as products_session:
         session_id = cmd[1]
         session = get_and_validate_session(session_id, conn, products_session)
         if session is None:
@@ -216,8 +213,6 @@ def getCategories(cmd: List[str], conn: socket.socket):
 def get_and_validate_session(
     session_id: str, conn: socket.socket, products_session: Session
 ):
-
-
     try:
         session = (
             products_session.query(TblSession).filter_by(id=int(session_id)).first()
@@ -238,7 +233,6 @@ def get_and_validate_session(
         session.last_activity = datetime.datetime.now(datetime.timezone.utc)
         products_session.add(session)
         products_session.commit()
-        print("updated last activity for session")
     except Exception as e:
         products_session.rollback()
         conn.send(bytes(f"Database error: {e}", "utf-8"))

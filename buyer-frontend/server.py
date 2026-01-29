@@ -1,8 +1,6 @@
 #!/usr/bin/python
 import socket
 import threading
-from config import products_engine, customers_engine
-from sqlalchemy.orm import Session
 import interface
 
 PORT = 5000
@@ -45,14 +43,12 @@ print(f"Customer Frontend Server listening on port {PORT}...")
 
 
 def handle_client(conn, addr):
-    print(f"Connection from {addr} has been established!")
     try:
         while True:  # Keep reading commands
             info = conn.recv(65536)
             if not info:  # Connection closed by client
                 break
             cmd = info.decode("utf-8").strip()
-            print(f"Received data from {addr}: {cmd}")
             process_command(cmd, conn)
     except Exception as e:
         print(f"Error handling {addr}: {e}")

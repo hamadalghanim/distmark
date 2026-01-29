@@ -65,13 +65,10 @@ def login(
         conn.send(bytes(f"Login successful. Session ID: {sess.id}", "utf-8"))
 
 
-
 def logout(
     cmd: List[str],
     conn: socket.socket,
-
 ):
-
     with Session(customers_engine) as customers_session:
         # Structure "command name", "session_id" MAYBE put this in class
         session_id = cmd[1]
@@ -92,12 +89,9 @@ def logout(
 def getItem(
     cmd: List[str],
     conn: socket.socket,
-
 ):
-
     with Session(customers_engine) as customers_session:
         with Session(products_engine) as products_session:
-
             # Structure "command name", "session_id", "item_id"
             session_id = cmd[1]
             session = get_and_validate_session(session_id, conn, customers_session)
@@ -118,18 +112,17 @@ def getItem(
 def getCategories(
     cmd: List[str],
     conn: socket.socket,
-
 ):
-
     with Session(customers_engine) as customers_session:
         with Session(products_engine) as products_session:
-
             session_id = cmd[1]
             session = get_and_validate_session(session_id, conn, customers_session)
             if session is None:
                 return
             categories = products_session.query(Category).all()
-            conn.send(bytes("\n".join([item.__repr__() for item in categories]), "utf-8"))
+            conn.send(
+                bytes("\n".join([item.__repr__() for item in categories]), "utf-8")
+            )
 
 
 def get_and_validate_session(
@@ -155,7 +148,6 @@ def get_and_validate_session(
         session.last_activity = datetime.datetime.now(datetime.timezone.utc)
         customers_session.add(session)
         customers_session.commit()
-        print("updated last activity for session")
     except Exception as e:
         customers_session.rollback()
         conn.send(bytes(f"Database error: {e}", "utf-8"))
@@ -167,12 +159,9 @@ def get_and_validate_session(
 def searchItemsForSale(
     cmd: List[str],
     conn: socket.socket,
-
 ):
-
     with Session(customers_engine) as customers_session:
         with Session(products_engine) as products_session:
-
             # Structure "command name", "session_id", "category_id", "keywords"
             session_id = cmd[1]
             session = get_and_validate_session(session_id, conn, customers_session)
@@ -186,7 +175,9 @@ def searchItemsForSale(
                     query = query.filter_by(category_id=int(category_id))
                 if keywords:
                     for keyword in keywords:
-                        query = query.filter(Item.keywords.ilike(f"%{keyword.strip()}%"))
+                        query = query.filter(
+                            Item.keywords.ilike(f"%{keyword.strip()}%")
+                        )
                 items = query.all()
             except Exception as e:
                 conn.send(bytes(f"Database error: {e}", "utf-8"))
@@ -200,11 +191,9 @@ def searchItemsForSale(
 def saveCart(
     cmd: List[str],
     conn: socket.socket,
-
 ):
     with Session(customers_engine) as customers_session:
         with Session(products_engine) as products_session:
-
             # Structure "command name", "session_id", "item_id:quantity,item_id:quantity,..."
             session_id = cmd[1]
             session = get_and_validate_session(session_id, conn, customers_session)
@@ -222,7 +211,9 @@ def saveCart(
                 for item_entry in items:
                     item_id, quantity = map(int, item_entry.split(":"))
                     # validate item exists in products database with the correct id and quantity
-                    product_item = products_session.query(Item).filter_by(id=item_id).first()
+                    product_item = (
+                        products_session.query(Item).filter_by(id=item_id).first()
+                    )
                     if product_item is None:
                         response_lines.append(
                             f"Item ID {item_id} not found in products database (skipped)"
@@ -233,7 +224,9 @@ def saveCart(
                             f"Not enough quantity for Item ID {item_id} available {product_item.quantity} asked for {quantity} (skipped)"
                         )
                         continue
-                    cart_item = CartItem(cart_id=cart.id, item_id=item_id, quantity=quantity)
+                    cart_item = CartItem(
+                        cart_id=cart.id, item_id=item_id, quantity=quantity
+                    )
                     customers_session.add(cart_item)
                 customers_session.commit()
             except Exception as e:
@@ -249,9 +242,7 @@ def saveCart(
 def getCart(
     cmd: List[str],
     conn: socket.socket,
-
 ):
-
     with Session(customers_engine) as customers_session:
         # Structure "command name", "session_id"
         session_id = cmd[1]
@@ -261,7 +252,9 @@ def getCart(
 
         try:
             cart = get_or_create_cart(session.buyer_id, customers_session)
-            cart_items = customers_session.query(CartItem).filter_by(cart_id=cart.id).all()
+            cart_items = (
+                customers_session.query(CartItem).filter_by(cart_id=cart.id).all()
+            )
         except Exception as e:
             customers_session.rollback()
             conn.send(bytes(f"Database error: {e}", "utf-8"))
@@ -307,11 +300,9 @@ def get_or_create_cart(buyer_id: int, customers_session: Session) -> Cart:
 def provideFeedback(
     cmd: List[str],
     conn: socket.socket,
-
 ):
     with Session(customers_engine) as customers_session:
         with Session(products_engine) as products_session:
-
             # Structure "command name", "session_id", "item_id", "feedback" (thumbs up or down)
             session_id = cmd[1]
             session = get_and_validate_session(session_id, conn, customers_session)
@@ -338,11 +329,9 @@ def provideFeedback(
 def getSellerRating(
     cmd: List[str],
     conn: socket.socket,
-
 ):
     with Session(customers_engine) as customers_session:
         with Session(products_engine) as products_session:
-
             # Structure "command name", "session_id", "seller_id"
             session_id = cmd[1]
             session = get_and_validate_session(session_id, conn, customers_session)
@@ -350,7 +339,9 @@ def getSellerRating(
                 return
 
             try:
-                seller = products_session.query(Seller).filter_by(id=int(cmd[2])).first()
+                seller = (
+                    products_session.query(Seller).filter_by(id=int(cmd[2])).first()
+                )
             except Exception as e:
                 conn.send(bytes(f"Database error: {e}", "utf-8"))
                 return
@@ -364,10 +355,8 @@ def getSellerRating(
 def getBuyerPurchases(
     cmd: List[str],
     conn: socket.socket,
-
 ):
     with Session(customers_engine) as customers_session:
-
         # Structure "command name", "session_id"
         session_id = cmd[1]
         session = get_and_validate_session(session_id, conn, customers_session)
@@ -389,7 +378,8 @@ def getBuyerPurchases(
             return
 
         response_lines = [
-            f"Item ID: {item.item_id}, Quantity: {item.quantity}" for item in items_bought
+            f"Item ID: {item.item_id}, Quantity: {item.quantity}"
+            for item in items_bought
         ]
         conn.send(bytes("\n".join(response_lines), "utf-8"))
 
@@ -397,10 +387,8 @@ def getBuyerPurchases(
 def makePurchase(
     cmd: List[str],
     conn: socket.socket,
-
 ):
     with Session(customers_engine) as customers_session:
-
         # Structure "command name", "session_id"
         session_id = cmd[1]
         session = get_and_validate_session(session_id, conn, customers_session)
@@ -408,7 +396,9 @@ def makePurchase(
             return
         try:
             cart = get_or_create_cart(session.buyer_id, customers_session)
-            cart_items = customers_session.query(CartItem).filter_by(cart_id=cart.id).all()
+            cart_items = (
+                customers_session.query(CartItem).filter_by(cart_id=cart.id).all()
+            )
         except Exception as e:
             customers_session.rollback()
             conn.send(bytes(f"Database error: {e}", "utf-8"))
