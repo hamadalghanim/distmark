@@ -1,8 +1,2 @@
-# distmark
-
-- Client Side Buyers interface: CLI (Go)
-- Client Side Sellers interface: CLI (Go)
-- Server Side Buyers interface: Python
-- Server Side Sellers interface: Python
-- Product Database: PostgreSQL
-- Customer Database: PostgreSQL
+# Report
+The use multiple technologies to establish a distributed system, such as docker compose to emulate multiple machines and easily network them. The Go language as a cli application as an interface, this was chosen for its simplicity and performance. The frontend uses a python server that spins up threads per socket connection, to allow multiple clients to connect at the same time. The databases are postgres sql deployed through docker. The python frontend connects to the databases using SqlAlchemy creating database tables and handling seeding for testing. Currently in the scope of the assignment everything works however, it is worth to mention that some commands might need better validation, like checking if the id is an integer. This is left intentionally for the next assignment. 
