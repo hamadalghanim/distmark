@@ -199,20 +199,38 @@ def saveCart(
         session = get_and_validate_session(session_id, conn, customers_session)
         if session is None:
             return
-        all_session_carts = customers_session.query(Cart).filter_by(
-            buyer_id=session.buyer_id, saved=True
+
+        current_cart = session.cart
+
+        if current_cart is None:
+            conn.send(bytes("No cart to save", "utf-8"))
+            return
+
+        current_cart_items = (
+            customers_session.query(CartItem).filter_by(cart_id=current_cart.id).all()
         )
-        for sc in all_session_carts:
-            sc.saved = False
 
-        if session.cart is None:
-            session.cart = Cart(
-                buyer_id=session.buyer_id, buyer_session_id=session.id, saved=True
+        # delete all previously saved carts for this buyer
+        customers_session.query(Cart).filter_by(
+            buyer_id=session.buyer_id, saved=True
+        ).delete()
+
+        # copy current cart
+        saved_cart = Cart(
+            buyer_id=session.buyer_id,
+            buyer_session_id=None,
+            saved=True,
+        )
+        customers_session.add(saved_cart)
+        customers_session.flush()
+
+        # Copy items to the saved cart
+        for item in current_cart_items:
+            saved_item = CartItem(
+                cart_id=saved_cart.id, item_id=item.item_id, quantity=item.quantity
             )
-        else:
-            session.cart.saved = True
+            customers_session.add(saved_item)
 
-        customers_session.add(session)
         try:
             customers_session.commit()
         except Exception as e:
@@ -298,7 +316,17 @@ def clearCart(
             return
         try:
             cart = get_or_create_cart(session, customers_session)
+            active_cart = (
+                customers_session.query(Cart)
+                .filter_by(buyer_id=session.buyer_id, saved=True)
+                .first()
+            )
             customers_session.query(CartItem).filter_by(cart_id=cart.id).delete()
+            if active_cart is not None:
+                customers_session.query(CartItem).filter_by(
+                    cart_id=active_cart.id
+                ).delete()
+
             customers_session.commit()
         except Exception as e:
             customers_session.rollback()
@@ -338,15 +366,13 @@ def getCart(
             conn.send(bytes(f"Database error: {e}", "utf-8"))
             return
         saved_cart = active_cart.first()
-        response_lines.append(
-            "Session Cart (Saved)" if saved_cart == cart else "Session Cart"
-        )
+        response_lines.append("Session Cart")
         for item in cart_items:
             response_lines.append(f"Item ID: {item.item_id}, Quantity: {item.quantity}")
         if cart_items == []:
             response_lines.append("Cart is empty")
 
-        if saved_cart is not None and saved_cart != cart:
+        if saved_cart is not None:
             response_lines.append("Saved Cart")
             saved_cart_items = (
                 customers_session.query(CartItem).filter_by(cart_id=saved_cart.id).all()
@@ -355,6 +381,8 @@ def getCart(
                 response_lines.append(
                     f"Item ID: {item.item_id}, Quantity: {item.quantity}"
                 )
+            if saved_cart_items == []:
+                response_lines.append("Saved cart is empty")
 
         conn.send(bytes("\n".join(response_lines), "utf-8"))
 

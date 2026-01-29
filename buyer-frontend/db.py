@@ -1,4 +1,4 @@
-from typing import List
+from typing import List, Optional
 from sqlalchemy import ForeignKey
 from sqlalchemy import String, DECIMAL, INT, DateTime
 from sqlalchemy.orm import DeclarativeBase
@@ -135,8 +135,12 @@ class Cart(BaseCustomers):
     items: Mapped[List["CartItem"]] = relationship(
         back_populates="cart", cascade="all, delete-orphan"
     )
-    buyer_session_id: Mapped[int] = mapped_column(ForeignKey("buyer_sessions.id"))
-    session: Mapped["BuyerSession"] = relationship(back_populates="cart")
+    buyer_session_id: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("buyer_sessions.id"), nullable=True, default=None
+    )
+    session: Mapped[Optional["BuyerSession"]] = relationship(
+        back_populates="cart", uselist=False
+    )
     saved: Mapped[bool] = mapped_column(default=False)
 
     def __repr__(self) -> str:
