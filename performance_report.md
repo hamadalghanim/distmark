@@ -1,10 +1,10 @@
 # Performance Report
 | Scenario | Total Time | Avg Response Time | Throughput |
 |----------|-----------|-------------------|-----------|
-| 1 | 4.09s | 0.0020s | 488.42 ops/sec |
-| 2 | 22.89s | 0.0011s | 873.57 ops/sec |
-| 3 | 243.71s | 0.0012s | 820.64 ops/sec |
+| 0 | 4.16s | 0.0021s | 480.96 ops/sec |
+| 1 | 26.86s | 0.0013s | 744.65 ops/sec |
+| 2 | 293.80s | 0.0015s | 680.74 ops/sec |
 
 ![Evaluation Data](eval_data.png)
 
-As we can see the first scenario where we connect 1 buyers and 1 seller, the throughput is lower than the other scenarios because the limiting factor is how fast can we receive and send data. As for the second scenario where we connect 10 buyers and 10 sellers we see the best numbers in terms of response time and throughput as the server is being utilized more than the first scenario. As for the final scenario where we connect 100 buyers and 100 sellers we lose throughput and the response time lowers bit (0.1ms) this can be attributed to either noise or database connection limits. 
+As we can see the first scenario where we connect 1 buyer and 1 seller, the throughput is lower than the other scenarios because the limiting factor is how fast we can receive and send data. In the second scenario where we connect 10 buyers and 10 sellers, we see the best numbers in terms of response time and throughput as the server is being utilized more effectively. In the final scenario where we connect 100 buyers and 100 sellers, we observe a decrease in throughput and a slight increase in response time (0.2ms). This can be attributed to either measurement variance or database connection constraints. 
