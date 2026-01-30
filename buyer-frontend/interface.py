@@ -205,26 +205,26 @@ def saveCart(
         if current_cart is None:
             conn.send(bytes("No cart to save", "utf-8"))
             return
-
+        
         current_cart_items = (
             customers_session.query(CartItem).filter_by(cart_id=current_cart.id).all()
         )
-
-        # delete all previously saved carts for this buyer
-        customers_session.query(Cart).filter_by(
+        
+        saved_cart = customers_session.query(Cart).filter_by(
             buyer_id=session.buyer_id, saved=True
-        ).delete()
+        ).first()
 
-        # copy current cart
-        saved_cart = Cart(
-            buyer_id=session.buyer_id,
-            buyer_session_id=None,
-            saved=True,
-        )
-        customers_session.add(saved_cart)
-        customers_session.flush()
+        if saved_cart is None:
+            saved_cart = Cart(
+                buyer_id=session.buyer_id,
+                buyer_session_id=None,
+                saved=True,
+            )
+            customers_session.add(saved_cart)
+            customers_session.flush()
+        else:
+            customers_session.query(CartItem).filter_by(cart_id=saved_cart.id).delete()
 
-        # Copy items to the saved cart
         for item in current_cart_items:
             saved_item = CartItem(
                 cart_id=saved_cart.id, item_id=item.item_id, quantity=item.quantity

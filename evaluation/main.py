@@ -21,7 +21,8 @@ def perform_random_buyer_cmd(sock, session_id):
         f"ClearCart\n{session_id}\n",
         f"AddItemToCart\n{session_id}\n1\n1\n",
         f"RemoveItemFromCart\n{session_id}\n1\n",
-        f"SaveCart\n{session_id}\n"
+        f"SaveCart\n{session_id}\n",
+        f"GetCart\n{session_id}\n"
     ]
     cmd = random.choice(cmds)
     sock.send(bytes(cmd, encoding="utf-8"))
