@@ -27,14 +27,12 @@ class Item(_message.Message):
     def __init__(self, id: _Optional[int] = ..., name: _Optional[str] = ..., category_id: _Optional[int] = ..., keywords: _Optional[str] = ..., condition: _Optional[str] = ..., sale_price: _Optional[float] = ..., quantity: _Optional[int] = ..., seller_id: _Optional[int] = ...) -> None: ...
 
 class Category(_message.Message):
-    __slots__ = ("id", "name", "description")
+    __slots__ = ("id", "name")
     ID_FIELD_NUMBER: _ClassVar[int]
     NAME_FIELD_NUMBER: _ClassVar[int]
-    DESCRIPTION_FIELD_NUMBER: _ClassVar[int]
     id: int
     name: str
-    description: str
-    def __init__(self, id: _Optional[int] = ..., name: _Optional[str] = ..., description: _Optional[str] = ...) -> None: ...
+    def __init__(self, id: _Optional[int] = ..., name: _Optional[str] = ...) -> None: ...
 
 class CreateAccountRequest(_message.Message):
     __slots__ = ("name", "username", "password")

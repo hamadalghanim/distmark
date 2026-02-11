@@ -6,33 +6,289 @@ import products_pb2
 import products_pb2_grpc
 
 
+import datetime
+from db import Seller, Category, Item
+from db import Session as TblSession
+
+from sqlalchemy.orm import Session
+
+from utils import products_engine, getAndValidateSession
+
+
 class Greeter(products_pb2_grpc.SellerService):
-    def CreateAccount(self, request, context):
-        return products_pb2.CreateAccountResponse()
+    def CreateAccount(self, request: products_pb2.CreateAccountRequest, context):
+        with Session(products_engine) as products_session:
+            try:
+                obj = Seller(
+                    name=request.name,
+                    username=request.username,
+                    password=request.password,
+                )
+                products_session.add(obj)
+                products_session.commit()
+            except Exception as e:
+                products_session.rollback()
+                return products_pb2.CreateAccountResponse(
+                    success=False, message=f"Database error: {e}"
+                )
 
-    def Login(self, request, context):
-        return products_pb2.LoginResponse()
+            return products_pb2.CreateAccountResponse(success=True, seller_id=obj.id)
 
-    def Logout(self, request, context):
-        return products_pb2.LogoutResponse()
+    def Login(self, request: products_pb2.LoginRequest, context):
+        with Session(products_engine) as products_session:
+            try:
+                seller = (
+                    products_session.query(Seller)
+                    .filter_by(username=request.username)
+                    .first()
+                )
+            except Exception as e:
+                return products_pb2.LoginResponse(
+                    success=False, message=f"Database error: {e}"
+                )
 
-    def GetSellerRating(self, request, context):
-        return products_pb2.RatingResponse()
+            if seller is None:
+                return products_pb2.LoginResponse(
+                    success=False, message="Seller not found"
+                )
 
-    def RegisterItemForSale(self, request, context):
-        return products_pb2.RegisterItemResponse()
+            if seller.password != request.password:
+                return products_pb2.LoginResponse(
+                    success=False, message="Invalid username or password"
+                )
+            try:
+                _session = TblSession(
+                    seller_id=seller.id,
+                    last_activity=datetime.datetime.now(datetime.timezone.utc),
+                )
+                products_session.add(_session)
+                products_session.commit()
+            except Exception as e:
+                products_session.rollback()
+                return products_pb2.LoginResponse(
+                    success=False, message=f"Database error: {e}"
+                )
 
-    def ChangeItemPrice(self, request, context):
-        return products_pb2.ChangeItemPriceResponse()
+            return products_pb2.LoginResponse(success=True, session_id=_session.id)
 
-    def UpdateUnitsForSale(self, request, context):
-        return products_pb2.UpdateUnitsResponse()
+    def Logout(self, request: products_pb2.LogoutRequest, context):
+        with Session(products_engine) as products_session:
+            session_id = request.session_id
+            result = getAndValidateSession(session_id, products_session)
+            if result.error:
+                return products_pb2.LogoutResponse(success=False, message=result.error)
+            else:
+                session = result.session
+            try:
+                products_session.delete(session)
+                products_session.commit()
+            except Exception as e:
+                products_session.rollback()
+                return products_pb2.LogoutResponse(
+                    success=False, message=f"Database error: {e}"
+                )
 
-    def DisplayItemsForSale(self, request, context):
-        return products_pb2.ItemListResponse()
+        return products_pb2.LogoutResponse(success=True)
 
-    def GetCategories(self, request, context):
-        return products_pb2.CategoryListResponse()
+    def GetSellerRating(self, request: products_pb2.GetSellerRatingRequest, context):
+        with Session(products_engine) as products_session:
+            result = getAndValidateSession(request.session_id, products_session)
+            if result.error:
+                return products_pb2.RatingResponse(success=False, message=result.error)
+            else:
+                session = result.session
+
+        return products_pb2.RatingResponse(
+            success=True, feedback=session.seller.feedback
+        )
+
+    def RegisterItemForSale(self, request: products_pb2.RegisterItemRequest, context):
+        with Session(products_engine) as products_session:
+            result = getAndValidateSession(request.session_id, products_session)
+            if result.error:
+                return products_pb2.RegisterItemResponse(
+                    success=False, message=result.error
+                )
+            else:
+                session = result.session
+            try:
+                item = Item(
+                    name=request.item_name,
+                    category_id=request.category_id,
+                    keywords=request.keywords,
+                    condition=request.condition,
+                    sale_price=request.price,
+                    quantity=request.quantity,
+                    seller_id=session.seller_id,
+                )
+                products_session.add(item)
+                products_session.commit()
+            except Exception as e:
+                products_session.rollback()
+                return products_pb2.RegisterItemResponse(
+                    success=False, message=f"Database Error: {e}"
+                )
+
+        return products_pb2.RegisterItemResponse(item_id=item.id)
+
+    def ChangeItemPrice(self, request: products_pb2.ChangeItemPriceRequest, context):
+        with Session(products_engine) as products_session:
+            # Structure "command name", "session_id","item_id" "new_price"
+            result = getAndValidateSession(request.session_id, products_session)
+            if result.error:
+                return products_pb2.ChangeItemPriceResponse(
+                    success=False, message=result.error
+                )
+            else:
+                session = result.session
+
+            try:
+                item = (
+                    products_session.query(Item)
+                    .filter_by(id=request.item_id, seller_id=session.seller_id)
+                    .first()
+                )
+            except Exception as e:
+                return products_pb2.ChangeItemPriceResponse(
+                    success=False, message=f"Database error: {e}"
+                )
+            if item is None:
+                return products_pb2.ChangeItemPriceResponse(
+                    success=False, message="Item not found"
+                )
+            try:
+                item.sale_price = float(request.new_price)
+                products_session.add(item)
+                products_session.commit()
+            except Exception as e:
+                products_session.rollback()
+                return products_pb2.ChangeItemPriceResponse(
+                    success=False, message=f"Database error: {e}"
+                )
+                return
+            return products_pb2.ChangeItemPriceResponse(
+                success=True, current_price=item.sale_price
+            )
+
+    def UpdateUnitsForSale(self, request: products_pb2.UpdateUnitsRequest, context):
+        with Session(products_engine) as products_session:
+            result = getAndValidateSession(request.session_id, products_session)
+            if result.error:
+                return products_pb2.UpdateUnitsResponse(
+                    success=False,
+                    message=result.error,
+                )
+
+            session = result.session
+
+            try:
+                item = (
+                    products_session.query(Item)
+                    .filter_by(id=request.item_id, seller_id=session.seller_id)
+                    .first()
+                )
+            except Exception as e:
+                return products_pb2.UpdateUnitsResponse(
+                    success=False,
+                    message=f"Database error: {e}",
+                )
+
+            if item is None:
+                return products_pb2.UpdateUnitsResponse(
+                    success=False,
+                    message="Item not found",
+                )
+
+            try:
+                item.quantity = int(request.new_qty)
+                products_session.commit()
+            except Exception as e:
+                products_session.rollback()
+                return products_pb2.UpdateUnitsResponse(
+                    success=False,
+                    message=f"Database error: {e}",
+                )
+
+            return products_pb2.UpdateUnitsResponse(
+                success=True,
+                quantity=item.quantity,
+            )
+
+    def DisplayItemsForSale(self, request: products_pb2.DisplayItemsRequest, context):
+        with Session(products_engine) as products_session:
+            result = getAndValidateSession(request.session_id, products_session)
+            if result.error:
+                return products_pb2.ItemListResponse(
+                    success=False,
+                    message=result.error,
+                )
+            session = result.session
+            try:
+                items = (
+                    products_session.query(Item)
+                    .filter_by(seller_id=session.seller_id)
+                    .all()
+                )
+            except Exception as e:
+                return products_pb2.ItemListResponse(
+                    success=False,
+                    message=f"Database error: {e}",
+                )
+
+            if not items:
+                return products_pb2.ItemListResponse(
+                    success=True,
+                    items=[],
+                )
+
+            proto_items = [
+                products_pb2.Item(
+                    id=item.id,
+                    name=item.name,
+                    quantity=item.quantity,
+                    sale_price=item.sale_price,
+                    category_id=item.category_id,
+                    condition=item.condition,
+                    keywords=item.keywords,
+                )
+                for item in items
+            ]
+
+            return products_pb2.ItemListResponse(
+                success=True,
+                items=proto_items,
+            )
+
+
+def GetCategories(self, request: products_pb2.GetCategoriesRequest, context):
+    with Session(products_engine) as products_session:
+        result = getAndValidateSession(request.session_id, products_session)
+        if result.error:
+            return products_pb2.CategoryListResponse(
+                success=False,
+                message=result.error,
+            )
+
+        try:
+            categories = products_session.query(Category).all()
+        except Exception as e:
+            return products_pb2.CategoryListResponse(
+                success=False,
+                message=f"Database error: {e}",
+            )
+
+        proto_categories = [
+            products_pb2.Category(
+                id=category.id,
+                name=category.name,
+            )
+            for category in categories
+        ]
+
+        return products_pb2.CategoryListResponse(
+            success=True,
+            categories=proto_categories,
+        )
 
 
 def serve():
