@@ -1,0 +1,145 @@
+syntax = "proto3";
+
+package products;
+
+service SellerService {
+  rpc CreateAccount (CreateAccountRequest) returns (CreateAccountResponse);
+  rpc Login (LoginRequest) returns (LoginResponse);
+  rpc Logout (LogoutRequest) returns (LogoutResponse);
+  rpc GetSellerRating (GetSellerRatingRequest) returns (RatingResponse);
+  rpc RegisterItemForSale (RegisterItemRequest) returns (RegisterItemResponse);
+  rpc ChangeItemPrice (ChangeItemPriceRequest) returns (ChangeItemPriceResponse);
+  rpc UpdateUnitsForSale (UpdateUnitsRequest) returns (UpdateUnitsResponse);
+  rpc DisplayItemsForSale (DisplayItemsRequest) returns (ItemListResponse);
+  rpc GetCategories (GetCategoriesRequest) returns (CategoryListResponse);
+}
+
+// --- Shared Types ---
+
+message Item {
+  int32  id          = 1;
+  string name        = 2;
+  int32  category_id = 3;
+  string keywords    = 4;
+  string condition   = 5; // e.g., "NEW", "USED"
+  double sale_price  = 6;
+  int32  quantity    = 7;
+  int32  seller_id   = 8;
+}
+
+message Category {
+  int32  id          = 1;
+  string name        = 2;
+  string description = 3;
+}
+
+// CreateAccount
+message CreateAccountRequest {
+  string name     = 1;
+  string username = 2;
+  string password = 3;
+}
+
+message CreateAccountResponse {
+  bool   success   = 1;
+  string message   = 2; // e.g., "Seller created with ID: 123" or "Database error"
+  int32  seller_id = 3; // Populated on success
+}
+
+// Login
+message LoginRequest {
+  string username = 1;
+  string password = 2;
+}
+
+message LoginResponse {
+  bool   success    = 1;
+  string message    = 2; // e.g., "Login successful", "Seller not found"
+  int32  session_id = 3; // Populated on success
+}
+
+// Logout
+message LogoutRequest {
+  int32 session_id = 1;
+}
+
+message LogoutResponse {
+  bool   success = 1;
+  string message = 2;
+}
+
+// GetSellerRating
+message GetSellerRatingRequest {
+  int32 session_id = 1;
+}
+
+message RatingResponse {
+  bool   success  = 1;
+  string message  = 2;
+  double feedback = 3; // The rating value
+}
+
+// RegisterItemForSale
+message RegisterItemRequest {
+  int32  session_id  = 1;
+  string item_name   = 2;
+  int32  category_id = 3;
+  string keywords    = 4;
+  string condition   = 5;
+  double price       = 6;
+  int32  quantity    = 7;
+}
+
+message RegisterItemResponse {
+  bool   success = 1;
+  string message = 2;
+  int32  item_id = 3;
+}
+
+// ChangeItemPrice
+message ChangeItemPriceRequest {
+  int32  session_id = 1;
+  int32  item_id    = 2;
+  double new_price  = 3;
+}
+
+message ChangeItemPriceResponse {
+  bool   success       = 1;
+  string message       = 2;
+  double current_price = 3;
+}
+
+// UpdateUnitsForSale
+message UpdateUnitsRequest {
+  int32 session_id   = 1;
+  int32 item_id      = 2;
+  int32 new_quantity = 3;
+}
+
+message UpdateUnitsResponse {
+  bool   success          = 1;
+  string message          = 2;
+  int32  current_quantity = 3;
+}
+
+// DisplayItemsForSale
+message DisplayItemsRequest {
+  int32 session_id = 1;
+}
+
+message ItemListResponse {
+  bool          success = 1;
+  string        message = 2;
+  repeated Item items   = 3; // List of item objects
+}
+
+// GetCategories
+message GetCategoriesRequest {
+  int32 session_id = 1;
+}
+
+message CategoryListResponse {
+  bool              success    = 1;
+  string            message    = 2;
+  repeated Category categories = 3;
+}
