@@ -4,8 +4,8 @@ from typing import List
 import socket
 
 # Import the generated protobuf classes
-import products_pb2
-import products_pb2_grpc
+from proto import products_pb2
+from proto import products_pb2_grpc
 
 GRPC_HOST = os.getenv("PRODUCTS_DB_RPC_HOST", "products-db-rpc")
 GRPC_PORT = os.getenv("PRODUCTS_DB_RPC_PORT", "5000")

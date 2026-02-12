@@ -2,12 +2,12 @@ from concurrent import futures
 import datetime
 import grpc
 import logging
-from db import Buyer, BuyerSession, Cart, CartItem, ItemsBought, Item
+from db import Buyer, BuyerSession, Cart, CartItem, ItemsBought
 from sqlalchemy.orm import Session
 
 # Import generated proto files (after running protoc)
-import customers_pb2
-import customers_pb2_grpc
+from proto import customers_pb2
+from proto import customers_pb2_grpc
 
 from utils import customers_engine, getAndValidateSession
 

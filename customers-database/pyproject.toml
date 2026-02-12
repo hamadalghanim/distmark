@@ -1,0 +1,15 @@
+[project]
+name = "customers-database"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "grpcio==1.78.0",
+    "grpcio-tools==1.78.0",
+    "protobuf==6.33.5",
+    "psycopg2-binary==2.9.11",
+    "setuptools==82.0.0",
+    "sqlalchemy==2.0.46",
+    "typing-extensions==4.15.0",
+]

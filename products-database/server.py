@@ -2,8 +2,8 @@ from concurrent import futures
 import logging
 
 import grpc
-import products_pb2
-import products_pb2_grpc
+from proto import products_pb2
+from proto import products_pb2_grpc
 
 import datetime
 from db import BaseProducts, Seller, Category, Item
