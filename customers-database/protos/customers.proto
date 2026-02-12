@@ -1,0 +1,108 @@
+syntax = "proto3";
+
+package customers;
+
+service CustomersService {
+
+  rpc CreateAccount(CreateAccountRequest) returns (CreateAccountResponse);
+
+  rpc Login(LoginRequest) returns (LoginResponse);
+
+  rpc Logout(LogoutRequest) returns (BasicResponse);
+
+  rpc AddItemToCart(AddItemToCartRequest) returns (BasicResponse);
+
+  rpc RemoveItemFromCart(RemoveItemFromCartRequest) returns (BasicResponse);
+
+  rpc ClearCart(ClearCartRequest) returns (BasicResponse);
+
+  rpc SaveCart(SaveCartRequest) returns (BasicResponse);
+
+  rpc GetCart(GetCartRequest) returns (GetCartResponse);
+
+  rpc GetBuyerPurchases(GetBuyerPurchasesRequest)
+      returns (GetBuyerPurchasesResponse);
+
+  rpc GetBuyer(GetBuyerRequest) returns (GetBuyerResponse);
+}
+
+message GetBuyerRequest {
+  int32 session_id = 1;
+}
+message GetBuyerResponse {
+  bool success = 1;
+  string message = 2;
+  int32 buyer_id = 3;
+}
+
+
+message BasicResponse {
+  bool success = 1;
+  string message = 2;
+}
+message CreateAccountRequest {
+  string name = 1;
+  string username = 2;
+  string password = 3;
+}
+
+message CreateAccountResponse {
+  bool success = 1;
+  string message = 2;
+  int32 buyer_id = 3;
+}
+message LoginRequest {
+  string username = 1;
+  string password = 2;
+}
+
+message LoginResponse {
+  bool success = 1;
+  string message = 2;
+  int32 session_id = 3;
+}
+message LogoutRequest {
+  int32 session_id = 1;
+}
+message AddItemToCartRequest {
+  int32 session_id = 1;
+  int32 item_id = 2;
+  int32 quantity = 3;
+}
+message RemoveItemFromCartRequest {
+  int32 session_id = 1;
+  int32 item_id = 2;
+}
+message ClearCartRequest {
+  int32 session_id = 1;
+}
+message SaveCartRequest {
+  int32 session_id = 1;
+}
+message CartItem {
+  int32 item_id = 1;
+  int32 quantity = 2;
+}
+message GetCartRequest {
+  int32 session_id = 1;
+}
+message GetCartResponse {
+  bool success = 1;
+  string message = 2;
+
+  repeated CartItem session_cart = 3;
+  repeated CartItem saved_cart = 4;
+}
+message GetBuyerPurchasesRequest {
+  int32 session_id = 1;
+}
+message PurchaseItem {
+  int32 item_id = 1;
+  int32 quantity = 2;
+}
+message GetBuyerPurchasesResponse {
+  bool success = 1;
+  string message = 2;
+
+  repeated PurchaseItem purchases = 3;
+}

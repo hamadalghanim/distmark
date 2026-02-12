@@ -15,7 +15,7 @@ from sqlalchemy.orm import Session
 from utils import products_engine, getAndValidateSession
 
 
-class Greeter(products_pb2_grpc.SellerService):
+class SellerAPI(products_pb2_grpc.SellerService):
     def CreateAccount(self, request: products_pb2.CreateAccountRequest, context):
         with Session(products_engine) as products_session:
             try:
@@ -259,42 +259,41 @@ class Greeter(products_pb2_grpc.SellerService):
                 items=proto_items,
             )
 
+    def GetCategories(self, request: products_pb2.GetCategoriesRequest, context):
+        with Session(products_engine) as products_session:
+            result = getAndValidateSession(request.session_id, products_session)
+            if result.error:
+                return products_pb2.CategoryListResponse(
+                    success=False,
+                    message=result.error,
+                )
 
-def GetCategories(self, request: products_pb2.GetCategoriesRequest, context):
-    with Session(products_engine) as products_session:
-        result = getAndValidateSession(request.session_id, products_session)
-        if result.error:
+            try:
+                categories = products_session.query(Category).all()
+            except Exception as e:
+                return products_pb2.CategoryListResponse(
+                    success=False,
+                    message=f"Database error: {e}",
+                )
+
+            proto_categories = [
+                products_pb2.Category(
+                    id=category.id,
+                    name=category.name,
+                )
+                for category in categories
+            ]
+
             return products_pb2.CategoryListResponse(
-                success=False,
-                message=result.error,
+                success=True,
+                categories=proto_categories,
             )
-
-        try:
-            categories = products_session.query(Category).all()
-        except Exception as e:
-            return products_pb2.CategoryListResponse(
-                success=False,
-                message=f"Database error: {e}",
-            )
-
-        proto_categories = [
-            products_pb2.Category(
-                id=category.id,
-                name=category.name,
-            )
-            for category in categories
-        ]
-
-        return products_pb2.CategoryListResponse(
-            success=True,
-            categories=proto_categories,
-        )
 
 
 def serve():
     port = "5000"
     server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))
-    products_pb2_grpc.add_SellerServiceServicer_to_server(Greeter(), server)
+    products_pb2_grpc.add_SellerServiceServicer_to_server(SellerAPI(), server)
     server.add_insecure_port("[::]:" + port)
     server.start()
     print("Server started, listening on " + port)
