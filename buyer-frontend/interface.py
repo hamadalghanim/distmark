@@ -1,5 +1,3 @@
-from typing import List
-import socket
 import grpc
 from proto import customers_pb2
 from proto import customers_pb2_grpc
@@ -23,11 +21,25 @@ _products_channel = grpc.insecure_channel(PRODUCTS_GRPC_ADDRESS)
 _products_stub = products_pb2_grpc.SellerServiceStub(_products_channel)
 
 
-def createAccount(cmd: List[str], conn: socket.socket) -> None:
-    # Structure "command name", "name", "username", "password"
-    name = cmd[1]
-    username = cmd[2]
-    password = cmd[3]
+def _item_to_dict(item):
+    """Helper to convert a gRPC item object to a dictionary."""
+    return {
+        "id": item.id,
+        "name": item.name,
+        "category_id": item.category_id,
+        "keywords": item.keywords,
+        "condition": item.condition,
+        "sale_price": item.sale_price,
+        "quantity": item.quantity,
+        "seller_id": item.seller_id,
+    }
+
+
+def createAccount(data):
+    # Data comes from request.json
+    name = data.get("name")
+    username = data.get("username")
+    password = data.get("password")
 
     try:
         request = customers_pb2.CreateAccountRequest(
@@ -36,52 +48,53 @@ def createAccount(cmd: List[str], conn: socket.socket) -> None:
         response = _customers_stub.CreateAccount(request)
 
         if response.success:
-            conn.send(bytes(f"Buyer created with ID: {response.buyer_id}", "utf-8"))
+            return {"result": "success", "buyer_id": response.buyer_id}
         else:
-            conn.send(bytes(response.message, "utf-8"))
+            return {"result": "error", "message": response.message}
     except grpc.RpcError as e:
-        conn.send(bytes(f"RPC error: {e.details()}", "utf-8"))
+        return {"result": "error", "message": f"RPC error: {e.details()}"}
 
 
-def login(cmd: List[str], conn: socket.socket):
-    # Structure "command name", "username", "password"
-    username = cmd[1]
-    password = cmd[2]
+def login(data):
+    username = data.get("username")
+    password = data.get("password")
 
     try:
         request = customers_pb2.LoginRequest(username=username, password=password)
         response = _customers_stub.Login(request)
 
         if response.success:
-            conn.send(
-                bytes(f"Login successful. Session ID: {response.session_id}", "utf-8")
-            )
+            return {"result": "success", "session_id": response.session_id}
         else:
-            conn.send(bytes(response.message, "utf-8"))
+            return {"result": "error", "message": response.message}
     except grpc.RpcError as e:
-        conn.send(bytes(f"RPC error: {e.details()}", "utf-8"))
+        return {"result": "error", "message": f"RPC error: {e.details()}"}
 
 
-def logout(cmd: List[str], conn: socket.socket):
-    # Structure "command name", "session_id"
-    session_id = int(cmd[1])
+def logout(data):
+    try:
+        session_id = int(data.get("session_id"))
+    except (TypeError, ValueError):
+        return {"result": "error", "message": "Invalid session_id"}
 
     try:
         request = customers_pb2.LogoutRequest(session_id=session_id)
         response = _customers_stub.Logout(request)
 
         if response.success:
-            conn.send(bytes("Logout successful", "utf-8"))
+            return {"result": "success", "message": "Logout successful"}
         else:
-            conn.send(bytes(response.message, "utf-8"))
+            return {"result": "error", "message": response.message}
     except grpc.RpcError as e:
-        conn.send(bytes(f"RPC error: {e.details()}", "utf-8"))
+        return {"result": "error", "message": f"RPC error: {e.details()}"}
 
 
-def getItem(cmd: List[str], conn: socket.socket):
-    # Structure "command name", "session_id", "item_id"
-    session_id = int(cmd[1])
-    item_id = int(cmd[2])
+def getItem(data):
+    try:
+        session_id = int(data.get("session_id"))
+        item_id = int(data.get("item_id"))
+    except (TypeError, ValueError):
+        return {"result": "error", "message": "Invalid number format"}
 
     try:
         # Verify buyer session first
@@ -89,26 +102,26 @@ def getItem(cmd: List[str], conn: socket.socket):
         buyer_response = _customers_stub.GetBuyer(buyer_request)
 
         if not buyer_response.success:
-            conn.send(bytes(buyer_response.message, "utf-8"))
-            return
+            return {"result": "error", "message": buyer_response.message}
 
         # Get item from products service
         item_request = products_pb2.GetItemRequest(item_id=item_id)
         item_response = _products_stub.GetItem(item_request)
 
         if item_response.success:
-            item = item_response.item
-            item_str = f"Item(id={item.id}, name='{item.name}', category_id={item.category_id}, keywords='{item.keywords}', condition='{item.condition}', sale_price={item.sale_price}, quantity={item.quantity}, seller_id={item.seller_id})"
-            conn.send(bytes(item_str, "utf-8"))
+            item = _item_to_dict(item_response.item)
+            return {"result": "success", "item": item}
         else:
-            conn.send(bytes(item_response.message, "utf-8"))
+            return {"result": "error", "message": item_response.message}
     except grpc.RpcError as e:
-        conn.send(bytes(f"RPC error: {e.details()}", "utf-8"))
+        return {"result": "error", "message": f"RPC error: {e.details()}"}
 
 
-def getCategories(cmd: List[str], conn: socket.socket):
-    # Structure "command name", "session_id"
-    session_id = int(cmd[1])
+def getCategories(data):
+    try:
+        session_id = int(data.get("session_id"))
+    except (TypeError, ValueError):
+        return {"result": "error", "message": "Invalid session_id"}
 
     try:
         # Verify buyer session first
@@ -116,8 +129,7 @@ def getCategories(cmd: List[str], conn: socket.socket):
         buyer_response = _customers_stub.GetBuyer(buyer_request)
 
         if not buyer_response.success:
-            conn.send(bytes(buyer_response.message, "utf-8"))
-            return
+            return {"result": "error", "message": buyer_response.message}
 
         # Get categories from products service
         get_categories_request = products_pb2.GetCategoriesClientRequest()
@@ -125,26 +137,28 @@ def getCategories(cmd: List[str], conn: socket.socket):
 
         if categories_response.success:
             if not categories_response.categories:
-                conn.send(bytes("No categories found", "utf-8"))
-            else:
-                categories_str = "\n".join(
-                    [
-                        f"Category(id={cat.id}, name='{cat.name}')"
-                        for cat in categories_response.categories
-                    ]
-                )
-                conn.send(bytes(categories_str, "utf-8"))
+                return {"result": "success", "categories": []}
+
+            categories_list = [
+                {"id": cat.id, "name": cat.name}
+                for cat in categories_response.categories
+            ]
+            return {"result": "success", "categories": categories_list}
         else:
-            conn.send(bytes(categories_response.message, "utf-8"))
+            return {"result": "error", "message": categories_response.message}
     except grpc.RpcError as e:
-        conn.send(bytes(f"RPC error: {e.details()}", "utf-8"))
+        return {"result": "error", "message": f"RPC error: {e.details()}"}
 
 
-def searchItemsForSale(cmd: List[str], conn: socket.socket):
-    # Structure "command name", "session_id", "category_id", "keywords"
-    session_id = int(cmd[1])
-    category_id = int(cmd[2])
-    keywords = cmd[3].split(",") if cmd[3] else []
+def searchItemsForSale(data):
+    try:
+        session_id = int(data.get("session_id"))
+        category_id = int(data.get("category"))
+    except (TypeError, ValueError):
+        return {"result": "error", "message": "Invalid number format"}
+
+    keywords = data.get("keywords", "")
+    keywords_list = keywords.split(",") if keywords else []
 
     try:
         # Verify buyer session first
@@ -152,53 +166,51 @@ def searchItemsForSale(cmd: List[str], conn: socket.socket):
         buyer_response = _customers_stub.GetBuyer(buyer_request)
 
         if not buyer_response.success:
-            conn.send(bytes(buyer_response.message, "utf-8"))
-            return
+            return {"result": "error", "message": buyer_response.message}
 
         # Search items from products service
         search_request = products_pb2.SearchItemsRequest(
-            category_id=category_id, keywords=keywords
+            category_id=category_id, keywords=keywords_list
         )
         search_response = _products_stub.SearchItemsForSale(search_request)
 
         if search_response.success:
             if not search_response.items:
-                conn.send(bytes("No items found", "utf-8"))
-            else:
-                items_str = "\n".join(
-                    [
-                        f"Item(id={item.id}, name='{item.name}', category_id={item.category_id}, keywords='{item.keywords}', condition='{item.condition}', sale_price={item.sale_price}, quantity={item.quantity}, seller_id={item.seller_id})"
-                        for item in search_response.items
-                    ]
-                )
-                conn.send(bytes(items_str, "utf-8"))
+                return {"result": "success", "message": "No items found", "items": []}
+
+            items_list = [_item_to_dict(item) for item in search_response.items]
+            return {"result": "success", "items": items_list}
         else:
-            conn.send(bytes(search_response.message, "utf-8"))
+            return {"result": "error", "message": search_response.message}
     except grpc.RpcError as e:
-        conn.send(bytes(f"RPC error: {e.details()}", "utf-8"))
+        return {"result": "error", "message": f"RPC error: {e.details()}"}
 
 
-def saveCart(cmd: List[str], conn: socket.socket):
-    # Structure "command name", "session_id"
-    session_id = int(cmd[1])
+def saveCart(data):
+    try:
+        session_id = int(data.get("session_id"))
+    except (TypeError, ValueError):
+        return {"result": "error", "message": "Invalid session_id"}
 
     try:
         request = customers_pb2.SaveCartRequest(session_id=session_id)
         response = _customers_stub.SaveCart(request)
 
         if response.success:
-            conn.send(bytes("Cart saved successfully", "utf-8"))
+            return {"result": "success", "message": "Cart saved successfully"}
         else:
-            conn.send(bytes(response.message, "utf-8"))
+            return {"result": "error", "message": response.message}
     except grpc.RpcError as e:
-        conn.send(bytes(f"RPC error: {e.details()}", "utf-8"))
+        return {"result": "error", "message": f"RPC error: {e.details()}"}
 
 
-def addItemToCart(cmd: List[str], conn: socket.socket):
-    # Structure "command name", "session_id", "item_id", "quantity"
-    session_id = int(cmd[1])
-    item_id = int(cmd[2])
-    quantity = int(cmd[3])
+def addItemToCart(data):
+    try:
+        session_id = int(data.get("session_id"))
+        item_id = int(data.get("item_id"))
+        quantity = int(data.get("quantity"))
+    except (TypeError, ValueError):
+        return {"result": "error", "message": "Invalid number format"}
 
     try:
         request = customers_pb2.AddItemToCartRequest(
@@ -207,17 +219,19 @@ def addItemToCart(cmd: List[str], conn: socket.socket):
         response = _customers_stub.AddItemToCart(request)
 
         if response.success:
-            conn.send(bytes("Item added to cart successfully", "utf-8"))
+            return {"result": "success", "message": "Item added to cart successfully"}
         else:
-            conn.send(bytes(response.message, "utf-8"))
+            return {"result": "error", "message": response.message}
     except grpc.RpcError as e:
-        conn.send(bytes(f"RPC error: {e.details()}", "utf-8"))
+        return {"result": "error", "message": f"RPC error: {e.details()}"}
 
 
-def removeItemFromCart(cmd: List[str], conn: socket.socket):
-    # Structure "command name", "session_id", "item_id"
-    session_id = int(cmd[1])
-    item_id = int(cmd[2])
+def removeItemFromCart(data):
+    try:
+        session_id = int(data.get("session_id"))
+        item_id = int(data.get("item_id"))
+    except (TypeError, ValueError):
+        return {"result": "error", "message": "Invalid number format"}
 
     try:
         request = customers_pb2.RemoveItemFromCartRequest(
@@ -226,68 +240,78 @@ def removeItemFromCart(cmd: List[str], conn: socket.socket):
         response = _customers_stub.RemoveItemFromCart(request)
 
         if response.success:
-            conn.send(bytes("Item removed from cart successfully", "utf-8"))
+            return {
+                "result": "success",
+                "message": "Item removed from cart successfully",
+            }
         else:
-            conn.send(bytes(response.message, "utf-8"))
+            return {"result": "error", "message": response.message}
     except grpc.RpcError as e:
-        conn.send(bytes(f"RPC error: {e.details()}", "utf-8"))
+        return {"result": "error", "message": f"RPC error: {e.details()}"}
 
 
-def clearCart(cmd: List[str], conn: socket.socket):
-    # Structure "command name", "session_id"
-    session_id = int(cmd[1])
+def clearCart(data):
+    try:
+        session_id = int(data.get("session_id"))
+    except (TypeError, ValueError):
+        return {"result": "error", "message": "Invalid session_id"}
 
     try:
         request = customers_pb2.ClearCartRequest(session_id=session_id)
         response = _customers_stub.ClearCart(request)
 
         if response.success:
-            conn.send(bytes("Cart cleared successfully", "utf-8"))
+            return {"result": "success", "message": "Cart cleared successfully"}
         else:
-            conn.send(bytes(response.message, "utf-8"))
+            return {"result": "error", "message": response.message}
     except grpc.RpcError as e:
-        conn.send(bytes(f"RPC error: {e.details()}", "utf-8"))
+        return {"result": "error", "message": f"RPC error: {e.details()}"}
 
 
-def getCart(cmd: List[str], conn: socket.socket):
-    # Structure "command name", "session_id"
-    session_id = int(cmd[1])
+def getCart(data):
+    try:
+        session_id = int(data.get("session_id"))
+    except (TypeError, ValueError):
+        return {"result": "error", "message": "Invalid session_id"}
 
     try:
         request = customers_pb2.GetCartRequest(session_id=session_id)
         response = _customers_stub.GetCart(request)
 
         if response.success:
-            response_lines = []
+            session_cart = []
+            saved_cart = []
 
-            response_lines.append("Session Cart")
-            if not response.session_cart:
-                response_lines.append("Cart is empty")
-            else:
-                for item in response.session_cart:
-                    response_lines.append(
-                        f"Item ID: {item.item_id}, Quantity: {item.quantity}"
-                    )
+            if response.session_cart:
+                session_cart = [
+                    {"item_id": item.item_id, "quantity": item.quantity}
+                    for item in response.session_cart
+                ]
 
             if response.saved_cart:
-                response_lines.append("Saved Cart")
-                for item in response.saved_cart:
-                    response_lines.append(
-                        f"Item ID: {item.item_id}, Quantity: {item.quantity}"
-                    )
+                saved_cart = [
+                    {"item_id": item.item_id, "quantity": item.quantity}
+                    for item in response.saved_cart
+                ]
 
-            conn.send(bytes("\n".join(response_lines), "utf-8"))
+            return {
+                "result": "success",
+                "session_cart": session_cart,
+                "saved_cart": saved_cart,
+            }
         else:
-            conn.send(bytes(response.message, "utf-8"))
+            return {"result": "error", "message": response.message}
     except grpc.RpcError as e:
-        conn.send(bytes(f"RPC error: {e.details()}", "utf-8"))
+        return {"result": "error", "message": f"RPC error: {e.details()}"}
 
 
-def provideFeedback(cmd: List[str], conn: socket.socket):
-    # Structure "command name", "session_id", "item_id", "feedback"
-    session_id = int(cmd[1])
-    item_id = int(cmd[2])
-    feedback = int(cmd[3])
+def provideFeedback(data):
+    try:
+        session_id = int(data.get("session_id"))
+        item_id = int(data.get("item_id"))
+        feedback = int(data.get("feedback"))
+    except (TypeError, ValueError):
+        return {"result": "error", "message": "Invalid number format"}
 
     try:
         # Verify buyer session first
@@ -295,8 +319,7 @@ def provideFeedback(cmd: List[str], conn: socket.socket):
         buyer_response = _customers_stub.GetBuyer(buyer_request)
 
         if not buyer_response.success:
-            conn.send(bytes(buyer_response.message, "utf-8"))
-            return
+            return {"result": "error", "message": buyer_response.message}
 
         # Provide feedback via products service
         feedback_request = products_pb2.ProvideFeedbackRequest(
@@ -305,17 +328,19 @@ def provideFeedback(cmd: List[str], conn: socket.socket):
         feedback_response = _products_stub.ProvideFeedback(feedback_request)
 
         if feedback_response.success:
-            conn.send(bytes("Feedback recorded successfully", "utf-8"))
+            return {"result": "success", "message": "Feedback recorded successfully"}
         else:
-            conn.send(bytes(feedback_response.message, "utf-8"))
+            return {"result": "error", "message": feedback_response.message}
     except grpc.RpcError as e:
-        conn.send(bytes(f"RPC error: {e.details()}", "utf-8"))
+        return {"result": "error", "message": f"RPC error: {e.details()}"}
 
 
-def getSellerRating(cmd: List[str], conn: socket.socket):
-    # Structure "command name", "session_id", "seller_id"
-    session_id = int(cmd[1])
-    seller_id = int(cmd[2])
+def getSellerRating(data):
+    try:
+        session_id = int(data.get("session_id"))
+        seller_id = int(data.get("seller_id"))
+    except (TypeError, ValueError):
+        return {"result": "error", "message": "Invalid number format"}
 
     try:
         # Verify buyer session first
@@ -323,24 +348,25 @@ def getSellerRating(cmd: List[str], conn: socket.socket):
         buyer_response = _customers_stub.GetBuyer(buyer_request)
 
         if not buyer_response.success:
-            conn.send(bytes(buyer_response.message, "utf-8"))
-            return
+            return {"result": "error", "message": buyer_response.message}
 
         # Get seller rating via products service
         rating_request = products_pb2.GetSellerRatingByIdRequest(seller_id=seller_id)
         rating_response = _products_stub.GetSellerRatingById(rating_request)
 
         if rating_response.success:
-            conn.send(bytes(f"Seller Rating: {rating_response.feedback}", "utf-8"))
+            return {"result": "success", "feedback": rating_response.feedback}
         else:
-            conn.send(bytes(rating_response.message, "utf-8"))
+            return {"result": "error", "message": rating_response.message}
     except grpc.RpcError as e:
-        conn.send(bytes(f"RPC error: {e.details()}", "utf-8"))
+        return {"result": "error", "message": f"RPC error: {e.details()}"}
 
 
-def getBuyerPurchases(cmd: List[str], conn: socket.socket):
-    # Structure "command name", "session_id"
-    session_id = int(cmd[1])
+def getBuyerPurchases(data):
+    try:
+        session_id = int(data.get("session_id"))
+    except (TypeError, ValueError):
+        return {"result": "error", "message": "Invalid session_id"}
 
     try:
         request = customers_pb2.GetBuyerPurchasesRequest(session_id=session_id)
@@ -348,22 +374,28 @@ def getBuyerPurchases(cmd: List[str], conn: socket.socket):
 
         if response.success:
             if not response.purchases:
-                conn.send(bytes("No purchases found", "utf-8"))
-            else:
-                response_lines = [
-                    f"Item ID: {item.item_id}, Quantity: {item.quantity}"
-                    for item in response.purchases
-                ]
-                conn.send(bytes("\n".join(response_lines), "utf-8"))
+                return {
+                    "result": "success",
+                    "message": "No purchases found",
+                    "purchases": [],
+                }
+
+            purchases_list = [
+                {"item_id": item.item_id, "quantity": item.quantity}
+                for item in response.purchases
+            ]
+            return {"result": "success", "purchases": purchases_list}
         else:
-            conn.send(bytes(response.message, "utf-8"))
+            return {"result": "error", "message": response.message}
     except grpc.RpcError as e:
-        conn.send(bytes(f"RPC error: {e.details()}", "utf-8"))
+        return {"result": "error", "message": f"RPC error: {e.details()}"}
 
 
-def makePurchase(cmd: List[str], conn: socket.socket):
-    # Structure "command name", "session_id"
-    session_id = int(cmd[1])
+def makePurchase(data):
+    try:
+        session_id = int(data.get("session_id"))
+    except (TypeError, ValueError):
+        return {"result": "error", "message": "Invalid session_id"}
 
     try:
         # For now, just check if cart has items
@@ -371,13 +403,14 @@ def makePurchase(cmd: List[str], conn: socket.socket):
         cart_response = _customers_stub.GetCart(cart_request)
 
         if not cart_response.success:
-            conn.send(bytes(cart_response.message, "utf-8"))
-            return
+            return {"result": "error", "message": cart_response.message}
 
         if not cart_response.session_cart:
-            conn.send(bytes("Remote Cart is empty, nothing to purchase", "utf-8"))
-            return
+            return {
+                "result": "error",
+                "message": "Remote Cart is empty, nothing to purchase",
+            }
 
-        conn.send(bytes("Not Implemented Yet\n", "utf-8"))
+        return {"result": "error", "message": "Not Implemented Yet"}
     except grpc.RpcError as e:
-        conn.send(bytes(f"RPC error: {e.details()}", "utf-8"))
+        return {"result": "error", "message": f"RPC error: {e.details()}"}

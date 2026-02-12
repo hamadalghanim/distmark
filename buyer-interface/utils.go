@@ -2,12 +2,14 @@ package main
 
 import (
 	"bufio"
-	"errors"
+	"bytes"
+	"encoding/json"
 	"fmt"
-	"net"
+	"io"
+	"net/http"
+	"net/url"
 	"os"
 	"strings"
-	"time"
 )
 
 func buildKeywords(reader *bufio.Reader) string {
@@ -39,32 +41,11 @@ func buildKeywords(reader *bufio.Reader) string {
 	return keywords
 }
 
-func connectWithRetry(address string) (net.Conn, error) {
-	const (
-		maxReconnectAttempts = 3
-		reconnectDelay       = 2 * time.Second
-	)
-
-	for attempt := 1; attempt <= maxReconnectAttempts; attempt++ {
-		conn, err := net.Dial("tcp", address)
-		if err == nil {
-			return conn, nil
-		}
-
-		if attempt < maxReconnectAttempts {
-			fmt.Printf("Connection failed (attempt %d/%d), retrying in %v...\n",
-				attempt, maxReconnectAttempts, reconnectDelay)
-			time.Sleep(reconnectDelay)
-		}
-	}
-	return nil, fmt.Errorf("failed to connect after %d attempts", maxReconnectAttempts)
-}
-
 func print_menu() {
 	fmt.Print("Available commands:\n" +
-		"1. \033[1mCreateAccount\033[0m - Sets up username and password, returns seller ID\n" +
+		"1. \033[1mCreateAccount\033[0m - Sets up username and password, returns buyer ID\n" +
 		"2. \033[1mLogin\033[0m - Login with username and password (starts session)\n" +
-		"3. \033[1mLogout\033[0m - Ends active seller session\n" +
+		"3. \033[1mLogout\033[0m - Ends active buyer session\n" +
 		"4. \033[1mGetItem\033[0m - Returns Item details\n" +
 		"5. \033[1mGetCategories\033[0m - Get a list of categories\n" +
 		"6. \033[1mSearchItemsForSale\033[0m - Search items for sale by keywords\n" +
@@ -81,105 +62,124 @@ func print_menu() {
 		"17. \033[1mHelp\033[0m - Show this menu\n")
 }
 
-func dispatch_command(command string) (string, error) {
-
-	reader := bufio.NewReader(os.Stdin)
-
-	command = strings.TrimSpace(command)
+func dispatch_command(command string, reader *bufio.Reader) {
+	command = strings.ToLower(command)
 
 	switch command {
 	case "createaccount", "register", "1":
-		return CreateAccount(reader), nil
-
+		CreateAccount(reader)
 	case "login", "2":
-		return Login(reader), nil
+		Login(reader)
 	case "logout", "3":
-		if SessionId == 0 {
-			fmt.Println("Need to login first")
-			return "", errors.New("Not logged in")
-		}
-		return Logout(), nil
-	case "getitem", "4":
-		if SessionId == 0 {
-			fmt.Println("Need to login first")
-			return "", errors.New("Not logged in")
-		}
-		return GetItem(reader), nil
-	case "getcategories", "5":
-		if SessionId == 0 {
-			fmt.Println("Need to login first")
-			return "", errors.New("Not logged in")
-		}
-		return GetCategories(), nil
-	case "searchitemsforsale", "6":
-		if SessionId == 0 {
-			fmt.Println("Need to login first")
-			return "", errors.New("Not logged in")
-		}
-		return SearchItemsForSale(reader), nil
-	case "additemtocart", "7":
-		if SessionId == 0 {
-			fmt.Println("Need to login first")
-			return "", errors.New("Not logged in")
-		}
-		return AddItemToCart(reader), nil
-	case "removeitemfromcart", "8":
-		if SessionId == 0 {
-			fmt.Println("Need to login first")
-			return "", errors.New("Not logged in")
-		}
-		return RemoveItemFromCart(reader), nil
-	case "displaycart", "9":
-		if SessionId == 0 {
-			fmt.Println("Need to login first")
-			return "", errors.New("Not logged in")
-		}
-		return DisplayCart(), nil
-	case "savecart", "10":
-		if SessionId == 0 {
-			fmt.Println("Need to login first")
-			return "", errors.New("Not logged in")
-		}
-		return SaveCart(), nil
-	case "clearcart", "11":
-		if SessionId == 0 {
-			fmt.Println("Need to login first")
-			return "", errors.New("Not logged in")
-		}
-		return ClearCart(), nil
-
-	case "providefeedback", "12":
-		if SessionId == 0 {
-			fmt.Println("Need to login first")
-			return "", errors.New("Not logged in")
-		}
-		return ProvideFeedback(reader), nil
-	case "getsellerrating", "13":
-		if SessionId == 0 {
-			fmt.Println("Need to login first")
-			return "", errors.New("Not logged in")
-		}
-		return GetSellerRating(reader), nil
-	case "getbuyerpurchases", "14":
-		if SessionId == 0 {
-			fmt.Println("Need to login first")
-			return "", errors.New("Not logged in")
-		}
-		return GetBuyerPurchases(), nil
-	case "makepurchase", "15":
-		if SessionId == 0 {
-			fmt.Println("Need to login first")
-			return "", errors.New("Not logged in")
-		}
-		return MakePurchase(), nil
+		Logout(reader)
+	case "getitem", "item", "4":
+		GetItem(reader)
+	case "getcategories", "categories", "5":
+		GetCategories()
+	case "searchitemsforsale", "search", "6":
+		SearchItemsForSale(reader)
+	case "additemtocart", "add", "7":
+		AddItemToCart(reader)
+	case "removeitemfromcart", "remove", "8":
+		RemoveItemFromCart(reader)
+	case "displaycart", "cart", "9":
+		DisplayCart()
+	case "savecart", "save", "10":
+		SaveCart()
+	case "clearcart", "clear", "11":
+		ClearCart()
+	case "providefeedback", "feedback", "12":
+		ProvideFeedback(reader)
+	case "getsellerrating", "rating", "13":
+		GetSellerRating(reader)
+	case "getbuyerpurchases", "purchases", "14":
+		GetBuyerPurchases()
+	case "makepurchase", "buy", "15":
+		MakePurchase()
 	case "exit", "quit", "16":
-		fmt.Println("Exiting...")
 		os.Exit(0)
 	case "help", "17":
 		print_menu()
-		return "", nil
 	default:
-		return "", errors.New("Not a real command")
+		fmt.Printf("No such command: %s\n", command)
 	}
-	return "", errors.New("Not a real command")
+}
+
+func getEnv(key, fallback string) string {
+	if value, exists := os.LookupEnv(key); exists {
+		return value
+	}
+	return fallback
+}
+
+func sendPostRequest(endpoint string, payload interface{}) (string, error) {
+	return sendRequest("POST", endpoint, payload)
+}
+
+func sendPutRequest(endpoint string, payload interface{}) (string, error) {
+	return sendRequest("PUT", endpoint, payload)
+}
+
+func sendDeleteRequest(endpoint string, payload interface{}) (string, error) {
+	return sendRequest("DELETE", endpoint, payload)
+}
+
+func sendRequest(method, endpoint string, payload interface{}) (string, error) {
+	jsonData, err := json.Marshal(payload)
+	if err != nil {
+		return "", err
+	}
+
+	req, err := http.NewRequest(method, serverURL+endpoint, bytes.NewBuffer(jsonData))
+	if err != nil {
+		return "", err
+	}
+	req.Header.Set("Content-Type", "application/json")
+
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		return "", fmt.Errorf("connection error: %v", err)
+	}
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return "", err
+	}
+	return string(body), nil
+}
+
+func sendGetRequest(endpoint string, params url.Values) (string, error) {
+	// Build the full URL with query parameters
+	fullURL := fmt.Sprintf("%s%s?%s", serverURL, endpoint, params.Encode())
+
+	resp, err := http.Get(fullURL)
+	if err != nil {
+		return "", fmt.Errorf("connection error: %v", err)
+	}
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return "", err
+	}
+	return string(body), nil
+}
+
+func DebugJSON(v interface{}) {
+	data, err := json.MarshalIndent(v, "", "  ")
+	if err != nil {
+		fmt.Println("DebugJSON error:", err)
+		return
+	}
+
+	fmt.Println(string(data))
+}
+
+func truncate(s string, maxLen int) string {
+	if len(s) <= maxLen {
+		return s
+	}
+	return s[:maxLen-3] + "..."
 }

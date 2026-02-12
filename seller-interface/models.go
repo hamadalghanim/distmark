@@ -35,6 +35,7 @@ type LoginRequest struct {
 }
 
 type LoginResponse struct {
+	BaseResponse
 	SessionID int `json:"session_id"`
 }
 

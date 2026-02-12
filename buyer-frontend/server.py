@@ -1,66 +1,104 @@
 #!/usr/bin/python
-import socket
-import threading
+from flask import Flask, request
 import interface
 
-PORT = 5000
-sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-sock.bind(("0.0.0.0", PORT))
-sock.listen(1)
+app = Flask(__name__)
 
 
-def process_command(cmd, conn):
-    lines = cmd.strip().split("\n")
-    commands = [line.strip() for line in lines if line.strip()]
-
-    if not commands:
-        conn.send(bytes("ERROR: Empty command", "utf-8"))
-        return
-
-    mappings = {
-        "createaccount": interface.createAccount,
-        "login": interface.login,
-        "logout": interface.logout,
-        "getitem": interface.getItem,
-        "getcategories": interface.getCategories,
-        "searchitemsforsale": interface.searchItemsForSale,
-        "savecart": interface.saveCart,
-        "getcart": interface.getCart,
-        "additemtocart": interface.addItemToCart,
-        "removeitemfromcart": interface.removeItemFromCart,
-        "clearcart": interface.clearCart,
-        "providefeedback": interface.provideFeedback,
-        "getsellerrating": interface.getSellerRating,
-        "getbuyerpurchases": interface.getBuyerPurchases,
-        "makepurchase": interface.makePurchase,
-    }
-    command_name = commands[0].lower()
-
-    if command_name not in mappings:
-        conn.send(bytes(f"ERROR: Unknown command '{command_name}'", "utf-8"))
-        return
-    mappings[command_name](commands, conn)
+@app.route("/account/register", methods=["POST"])
+def create_account():
+    data = request.json
+    return interface.createAccount(data)
 
 
-print(f"Customer Frontend Server listening on port {PORT}...")
+@app.route("/account/login", methods=["POST"])
+def login():
+    data = request.json
+    return interface.login(data)
 
 
-def handle_client(conn, addr):
-    try:
-        while True:  # Keep reading commands
-            info = conn.recv(65536)
-            if not info:  # Connection closed by client
-                break
-            cmd = info.decode("utf-8").strip()
-            process_command(cmd, conn)
-    except Exception as e:
-        print(f"Error handling {addr}: {e}")
-    finally:
-        conn.close()
-        print(f"Connection from {addr} closed")
+@app.route("/account/logout", methods=["POST"])
+def logout():
+    data = request.json
+    return interface.logout(data)
 
 
-while True:
-    conn, addr = sock.accept()
-    t = threading.Thread(target=handle_client, args=(conn, addr), daemon=True)
-    t.start()
+@app.route("/items/<int:item_id>", methods=["GET"])
+def get_item(item_id):
+    # Convert query parameters (e.g., ?session_id=x) to a dictionary
+    data = request.args.to_dict()
+    data["item_id"] = item_id
+    return interface.getItem(data)
+
+
+@app.route("/categories", methods=["GET"])
+def get_categories():
+    data = request.args.to_dict()
+    return interface.getCategories(data)
+
+
+@app.route("/items/search", methods=["GET"])
+def search_items():
+    data = request.args.to_dict()
+    return interface.searchItemsForSale(data)
+
+
+@app.route("/cart/save", methods=["POST"])
+def save_cart():
+    data = request.json
+    return interface.saveCart(data)
+
+
+@app.route("/cart", methods=["GET"])
+def get_cart():
+    data = request.args.to_dict()
+    return interface.getCart(data)
+
+
+@app.route("/cart/items", methods=["POST"])
+def add_item_to_cart():
+    data = request.json
+    return interface.addItemToCart(data)
+
+
+@app.route("/cart/items/<int:item_id>", methods=["DELETE"])
+def remove_item_from_cart(item_id):
+    data = request.json or {}
+    data["item_id"] = item_id
+    return interface.removeItemFromCart(data)
+
+
+@app.route("/cart/clear", methods=["POST"])
+def clear_cart():
+    data = request.json
+    return interface.clearCart(data)
+
+
+@app.route("/feedback", methods=["POST"])
+def provide_feedback():
+    data = request.json
+    return interface.provideFeedback(data)
+
+
+@app.route("/seller/<int:seller_id>/rating", methods=["GET"])
+def get_seller_rating(seller_id):
+    data = request.args.to_dict()
+    data["seller_id"] = seller_id
+    return interface.getSellerRating(data)
+
+
+@app.route("/purchases", methods=["GET"])
+def get_buyer_purchases():
+    data = request.args.to_dict()
+    return interface.getBuyerPurchases(data)
+
+
+@app.route("/purchase", methods=["POST"])
+def make_purchase():
+    data = request.json
+    return interface.makePurchase(data)
+
+
+if __name__ == "__main__":
+    print("Customer Frontend REST API listening on port 5000...")
+    app.run(host="0.0.0.0", port=5000, debug=True)

@@ -60,10 +60,15 @@ func Login(reader *bufio.Reader) {
 	var result LoginResponse
 	json.Unmarshal([]byte(resp), &result)
 
-	if result.SessionID != 0 {
-		SessionId = result.SessionID
-		fmt.Printf("Logged in with Session ID: %d\n", SessionId)
+	if result.Result == "success" {
+		if result.SessionID != 0 {
+			SessionId = result.SessionID
+			fmt.Printf("Logged in with Session ID: %d\n", SessionId)
+		}
+	} else {
+		fmt.Println(result.Message)
 	}
+
 }
 
 func Logout(reader *bufio.Reader) {
