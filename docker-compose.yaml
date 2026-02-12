@@ -7,11 +7,14 @@ services:
     build: buyer-frontend/
     ports:
       - "8001:5000" # the internal docker port is 5000 but we expose to 8001
+    depends_on:
+      customers-database:
+        condition: service_healthy # Wait for DB to be healthy
 
   products-db-rpc:
     build: products-database
     ports:
-      - "5002:5000"
+      - "5000:5000"
     depends_on:
       products-database:
         condition: service_healthy # Wait for DB to be healthy
@@ -34,7 +37,7 @@ services:
     volumes:
       - ./data/customers:/var/lib/postgresql
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U user -d customers"]
+      test: [ "CMD-SHELL", "pg_isready -U user -d customers" ]
       interval: 5s
       timeout: 5s
       retries: 5
@@ -50,7 +53,7 @@ services:
     volumes:
       - ./data/products:/var/lib/postgresql
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U user -d products"]
+      test: [ "CMD-SHELL", "pg_isready -U user -d products" ]
       interval: 5s
       timeout: 5s
       retries: 5

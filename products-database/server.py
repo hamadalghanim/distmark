@@ -5,12 +5,12 @@ import grpc
 import products_pb2
 import products_pb2_grpc
 
-
 import datetime
-from db import Seller, Category, Item
+from db import BaseProducts, Seller, Category, Item
 from db import Session as TblSession
 
 from sqlalchemy.orm import Session
+from sqlalchemy.exc import IntegrityError
 
 from utils import products_engine, getAndValidateSession
 
@@ -26,6 +26,11 @@ class SellerAPI(products_pb2_grpc.SellerService):
                 )
                 products_session.add(obj)
                 products_session.commit()
+            except IntegrityError:
+                products_session.rollback()
+                return products_pb2.CreateAccountResponse(
+                    success=False, message="Error: Account already exists"
+                )
             except Exception as e:
                 products_session.rollback()
                 return products_pb2.CreateAccountResponse(
@@ -88,7 +93,7 @@ class SellerAPI(products_pb2_grpc.SellerService):
                     success=False, message=f"Database error: {e}"
                 )
 
-        return products_pb2.LogoutResponse(success=True)
+            return products_pb2.LogoutResponse(success=True)
 
     def GetSellerRating(self, request: products_pb2.GetSellerRatingRequest, context):
         with Session(products_engine) as products_session:
@@ -98,9 +103,9 @@ class SellerAPI(products_pb2_grpc.SellerService):
             else:
                 session = result.session
 
-        return products_pb2.RatingResponse(
-            success=True, feedback=session.seller.feedback
-        )
+            return products_pb2.RatingResponse(
+                success=True, feedback=session.seller.feedback
+            )
 
     def RegisterItemForSale(self, request: products_pb2.RegisterItemRequest, context):
         with Session(products_engine) as products_session:
@@ -129,7 +134,7 @@ class SellerAPI(products_pb2_grpc.SellerService):
                     success=False, message=f"Database Error: {e}"
                 )
 
-        return products_pb2.RegisterItemResponse(item_id=item.id)
+            return products_pb2.RegisterItemResponse(success=True, item_id=item.id)
 
     def ChangeItemPrice(self, request: products_pb2.ChangeItemPriceRequest, context):
         with Session(products_engine) as products_session:
@@ -200,7 +205,7 @@ class SellerAPI(products_pb2_grpc.SellerService):
                 )
 
             try:
-                item.quantity = int(request.new_qty)
+                item.quantity = int(request.new_quantity)
                 products_session.commit()
             except Exception as e:
                 products_session.rollback()
@@ -211,7 +216,7 @@ class SellerAPI(products_pb2_grpc.SellerService):
 
             return products_pb2.UpdateUnitsResponse(
                 success=True,
-                quantity=item.quantity,
+                current_quantity=item.quantity,
             )
 
     def DisplayItemsForSale(self, request: products_pb2.DisplayItemsRequest, context):
@@ -240,7 +245,6 @@ class SellerAPI(products_pb2_grpc.SellerService):
                     success=True,
                     items=[],
                 )
-
             proto_items = [
                 products_pb2.Item(
                     id=item.id,
@@ -248,7 +252,7 @@ class SellerAPI(products_pb2_grpc.SellerService):
                     quantity=item.quantity,
                     sale_price=item.sale_price,
                     category_id=item.category_id,
-                    condition=item.condition,
+                    condition=item.condition.name,
                     keywords=item.keywords,
                 )
                 for item in items
@@ -300,17 +304,17 @@ class SellerAPI(products_pb2_grpc.SellerService):
                     success=False, message=f"Database error: {e}"
                 )
 
-        item = products_pb2.Item(
-            id=item.id,
-            name=item.name,
-            category_id=item.category_id,
-            keywords=item.keywords,
-            condition=item.condition,
-            sale_price=item.sale_price,
-            quantity=item.quantity,
-            seller_id=item.seller_id,
-        )
-        return products_pb2.GetItemResponse(item=item, success=True)
+            item = products_pb2.Item(
+                id=item.id,
+                name=item.name,
+                category_id=item.category_id,
+                keywords=item.keywords,
+                condition=item.condition,
+                sale_price=item.sale_price,
+                quantity=item.quantity,
+                seller_id=item.seller_id,
+            )
+            return products_pb2.GetItemResponse(item=item, success=True)
 
     def SearchItemsForSale(self, request: products_pb2.SearchItemsRequest, context):
         with Session(products_engine) as products_session:
@@ -387,7 +391,29 @@ class SellerAPI(products_pb2_grpc.SellerService):
             return products_pb2.RatingResponse(feedback=seller.feedback, success=True)
 
 
+def seed(products_engine):
+    print("Seeding categories...")
+    with Session(products_engine) as products_session:
+        try:
+            count = products_session.query(Category).count()
+            if count == 0:
+                print("Seeding categories...")
+                categories = [
+                    Category(name="Electronics"),
+                    Category(name="Art"),
+                    Category(name="Home"),
+                ]
+                products_session.add_all(categories)
+                products_session.commit()
+                print("Categories seeded successfully")
+        except Exception as e:
+            products_session.rollback()
+            print(f"Error seeding database: {e}")
+
+
 def serve():
+    BaseProducts.metadata.create_all(products_engine)
+    seed(products_engine)
     port = "5000"
     server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))
     products_pb2_grpc.add_SellerServiceServicer_to_server(SellerAPI(), server)
