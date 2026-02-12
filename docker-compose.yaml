@@ -1,31 +1,29 @@
 services:
   seller-frontend:
-    build: seller-frontend/
+    build: seller-frontend
     ports:
       - "8000:5000" # the internal docker port is 5000 but we expose to 8000
+    depends_on:
+      - products-db-rpc
   buyer-frontend:
-    build: buyer-frontend/
+    build: buyer-frontend
     ports:
       - "8001:5000" # the internal docker port is 5000 but we expose to 8001
     depends_on:
-      customers-database:
-        condition: service_healthy # Wait for DB to be healthy
+      - customers-db-rpc
+      - products-db-rpc
 
   products-db-rpc:
     build: products-database
-    ports:
-      - "5000:5000"
     depends_on:
       products-database:
-        condition: service_healthy # Wait for DB to be healthy
+        condition: service_healthy
 
   customers-db-rpc:
     build: customers-database
-    ports:
-      - "5001:5000"
     depends_on:
       customers-database:
-        condition: service_healthy # Wait for DB to be healthy
+        condition: service_healthy
   customers-database:
     # to connect to the customers database we use customers-database:5432
     image: postgres:18

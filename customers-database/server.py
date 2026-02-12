@@ -13,7 +13,9 @@ from utils import customers_engine, getAndValidateSession
 
 
 class CustomerAPI(customers_pb2_grpc.CustomersServiceServicer):
-    def _get_or_create_cart(session: BuyerSession, customers_session: Session) -> Cart:
+    def _get_or_create_cart(
+        self, session: BuyerSession, customers_session: Session
+    ) -> Cart:
         cart = (
             customers_session.query(Cart)
             .filter_by(buyer_id=session.buyer_id, buyer_session_id=session.id)
@@ -85,9 +87,7 @@ class CustomerAPI(customers_pb2_grpc.CustomersServiceServicer):
                 _session.cart = Cart(buyer_id=buyer.id)
                 customers_session.add(_session)
                 customers_session.commit()
-                return customers_pb2.LoginResponse(
-                    success=True, message="Login successful", session_id=_session.id
-                )
+                return customers_pb2.LoginResponse(success=True, session_id=_session.id)
             except Exception as e:
                 customers_session.rollback()
                 return customers_pb2.LoginResponse(
@@ -105,7 +105,9 @@ class CustomerAPI(customers_pb2_grpc.CustomersServiceServicer):
                     success=False, message="Session not found or expired"
                 )
             session = result.session
-        return customers_pb2.GetBuyerResponse(success=True, buyer_id=session.buyer_id)
+            return customers_pb2.GetBuyerResponse(
+                success=True, buyer_id=session.buyer_id
+            )
 
     def Logout(
         self, request: customers_pb2.LogoutRequest, context

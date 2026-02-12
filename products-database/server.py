@@ -265,12 +265,13 @@ class SellerAPI(products_pb2_grpc.SellerService):
 
     def GetCategories(self, request: products_pb2.GetCategoriesRequest, context):
         with Session(products_engine) as products_session:
-            result = getAndValidateSession(request.session_id, products_session)
-            if result.error:
-                return products_pb2.CategoryListResponse(
-                    success=False,
-                    message=result.error,
-                )
+            # TODO: figure out where to do activity check
+            # result = getAndValidateSession(request.session_id, products_session)
+            # if result.error:
+            #     return products_pb2.CategoryListResponse(
+            #         success=False,
+            #         message=result.error,
+            #     )
 
             try:
                 categories = products_session.query(Category).all()
@@ -309,7 +310,7 @@ class SellerAPI(products_pb2_grpc.SellerService):
                 name=item.name,
                 category_id=item.category_id,
                 keywords=item.keywords,
-                condition=item.condition,
+                condition=item.condition.name,
                 sale_price=item.sale_price,
                 quantity=item.quantity,
                 seller_id=item.seller_id,
@@ -320,7 +321,7 @@ class SellerAPI(products_pb2_grpc.SellerService):
         with Session(products_engine) as products_session:
             try:
                 query = products_session.query(Item)
-                if request.category_id != "0":  # assuming 0 means all categories
+                if request.category_id != 0:  # assuming 0 means all categories
                     query = query.filter_by(category_id=request.category_id)
                 if len(request.keywords):
                     for keyword in request.keywords:
@@ -339,7 +340,7 @@ class SellerAPI(products_pb2_grpc.SellerService):
                     name=item.name,
                     category_id=item.category_id,
                     keywords=item.keywords,
-                    condition=item.condition,
+                    condition=item.condition.name,
                     sale_price=item.sale_price,
                     quantity=item.quantity,
                     seller_id=item.seller_id,
