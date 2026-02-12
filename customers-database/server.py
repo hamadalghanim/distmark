@@ -332,12 +332,12 @@ class CustomerAPI(customers_pb2_grpc.CustomersServiceServicer):
 
                 # Convert to protobuf format
                 current_items_proto = [
-                    customers_pb2.CartItem(item_id=item.id, quantity=item.quantity)
+                    customers_pb2.CartItem(item_id=item.item_id, quantity=item.quantity)
                     for item in current_cart_items
                 ]
 
                 saved_items_proto = [
-                    customers_pb2.CartItem(item_id=item.id, quantity=item.quantity)
+                    customers_pb2.CartItem(item_id=item.item_id, quantity=item.quantity)
                     for item in saved_cart_items
                 ]
 
