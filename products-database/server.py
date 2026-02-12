@@ -263,15 +263,39 @@ class SellerAPI(products_pb2_grpc.SellerService):
                 items=proto_items,
             )
 
+    def GetCategoriesClient(
+        self, request: products_pb2.GetCategoriesClientRequest, context
+    ):
+        with Session(products_engine) as products_session:
+            try:
+                categories = products_session.query(Category).all()
+            except Exception as e:
+                return products_pb2.CategoryListResponse(
+                    success=False,
+                    message=f"Database error: {e}",
+                )
+
+            proto_categories = [
+                products_pb2.Category(
+                    id=category.id,
+                    name=category.name,
+                )
+                for category in categories
+            ]
+
+            return products_pb2.CategoryListResponse(
+                success=True,
+                categories=proto_categories,
+            )
+
     def GetCategories(self, request: products_pb2.GetCategoriesRequest, context):
         with Session(products_engine) as products_session:
-            # TODO: figure out where to do activity check
-            # result = getAndValidateSession(request.session_id, products_session)
-            # if result.error:
-            #     return products_pb2.CategoryListResponse(
-            #         success=False,
-            #         message=result.error,
-            #     )
+            result = getAndValidateSession(request.session_id, products_session)
+            if result.error:
+                return products_pb2.CategoryListResponse(
+                    success=False,
+                    message=result.error,
+                )
 
             try:
                 categories = products_session.query(Category).all()

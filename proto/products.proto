@@ -12,6 +12,7 @@ service SellerService {
   rpc UpdateUnitsForSale (UpdateUnitsRequest) returns (UpdateUnitsResponse);
   rpc DisplayItemsForSale (DisplayItemsRequest) returns (ItemListResponse);
   rpc GetCategories (GetCategoriesRequest) returns (CategoryListResponse);
+  rpc GetCategoriesClient (GetCategoriesClientRequest) returns (CategoryListResponse);
   rpc GetItem (GetItemRequest) returns (GetItemResponse);
   rpc SearchItemsForSale (SearchItemsRequest) returns (ItemListResponse);
   rpc ProvideFeedback (ProvideFeedbackRequest) returns (ProvideFeedbackResponse);
@@ -168,4 +169,7 @@ message CategoryListResponse {
   bool              success    = 1;
   string            message    = 2;
   repeated Category categories = 3;
+}
+
+message GetCategoriesClientRequest {
 }

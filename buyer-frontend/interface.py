@@ -120,8 +120,8 @@ def getCategories(cmd: List[str], conn: socket.socket):
             return
 
         # Get categories from products service
-        categories_request = products_pb2.GetCategoriesRequest(session_id=session_id)
-        categories_response = _products_stub.GetCategories(categories_request)
+        get_categories_request = products_pb2.GetCategoriesClientRequest()
+        categories_response = _products_stub.GetCategoriesClient(get_categories_request)
 
         if categories_response.success:
             if not categories_response.categories:

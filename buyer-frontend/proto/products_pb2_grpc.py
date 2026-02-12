@@ -79,6 +79,11 @@ class SellerServiceStub(object):
                 request_serializer=products__pb2.GetCategoriesRequest.SerializeToString,
                 response_deserializer=products__pb2.CategoryListResponse.FromString,
                 _registered_method=True)
+        self.GetCategoriesClient = channel.unary_unary(
+                '/products.SellerService/GetCategoriesClient',
+                request_serializer=products__pb2.GetCategoriesClientRequest.SerializeToString,
+                response_deserializer=products__pb2.CategoryListResponse.FromString,
+                _registered_method=True)
         self.GetItem = channel.unary_unary(
                 '/products.SellerService/GetItem',
                 request_serializer=products__pb2.GetItemRequest.SerializeToString,
@@ -158,6 +163,12 @@ class SellerServiceServicer(object):
         context.set_details('Method not implemented!')
         raise NotImplementedError('Method not implemented!')
 
+    def GetCategoriesClient(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
     def GetItem(self, request, context):
         """Missing associated documentation comment in .proto file."""
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
@@ -228,6 +239,11 @@ def add_SellerServiceServicer_to_server(servicer, server):
             'GetCategories': grpc.unary_unary_rpc_method_handler(
                     servicer.GetCategories,
                     request_deserializer=products__pb2.GetCategoriesRequest.FromString,
+                    response_serializer=products__pb2.CategoryListResponse.SerializeToString,
+            ),
+            'GetCategoriesClient': grpc.unary_unary_rpc_method_handler(
+                    servicer.GetCategoriesClient,
+                    request_deserializer=products__pb2.GetCategoriesClientRequest.FromString,
                     response_serializer=products__pb2.CategoryListResponse.SerializeToString,
             ),
             'GetItem': grpc.unary_unary_rpc_method_handler(
@@ -493,6 +509,33 @@ class SellerService(object):
             target,
             '/products.SellerService/GetCategories',
             products__pb2.GetCategoriesRequest.SerializeToString,
+            products__pb2.CategoryListResponse.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
+
+    @staticmethod
+    def GetCategoriesClient(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            '/products.SellerService/GetCategoriesClient',
+            products__pb2.GetCategoriesClientRequest.SerializeToString,
             products__pb2.CategoryListResponse.FromString,
             options,
             channel_credentials,
