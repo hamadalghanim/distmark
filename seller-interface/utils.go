@@ -2,9 +2,13 @@ package main
 
 import (
 	"bufio"
-	"errors"
+	"bytes"
+	"encoding/json"
 	"fmt"
+	"io"
 	"net"
+	"net/http"
+	"net/url"
 	"os"
 	"strings"
 	"time"
@@ -74,69 +78,104 @@ func print_menu() {
 		"10. \033[1mExit\033[0m or \033[1mQuit\033[0m - Exit the application\n" +
 		"11. \033[1mHelp\033[0m - Show this menu\n")
 }
-
-func dispatch_command(command string) (string, error) {
-
-	reader := bufio.NewReader(os.Stdin)
-
-	command = strings.TrimSpace(command)
-
+func dispatch_command(command string, reader *bufio.Reader) {
 	switch command {
 	case "createaccount", "register", "1":
-		return CreateAccount(reader), nil
-
+		CreateAccount(reader)
 	case "login", "2":
-		return Login(reader), nil
+		Login(reader)
 	case "logout", "3":
-		if SessionId == 0 {
-			fmt.Println("Need to login first")
-			return "", errors.New("Not logged in")
-		}
-		return Logout(), nil
-	case "getsellerrating", "4":
-		if SessionId == 0 {
-			fmt.Println("Need to login first")
-			return "", errors.New("Not logged in")
-		}
-		return GetSellerRating(), nil
-	case "getcategories", "5":
-		if SessionId == 0 {
-			fmt.Println("Need to login first")
-			return "", errors.New("Not logged in")
-		}
-		return GetCategories(), nil
-	case "registeritemforsale", "6":
-		if SessionId == 0 {
-			fmt.Println("Need to login first")
-			return "", errors.New("Not logged in")
-		}
-		return RegisterItemForSale(reader), nil
-	case "changeitemprice", "7":
-		if SessionId == 0 {
-			fmt.Println("Need to login first")
-			return "", errors.New("Not logged in")
-		}
-		return ChangeItemPrice(reader), nil
-	case "updateunitsforsale", "8":
-		if SessionId == 0 {
-			fmt.Println("Need to login first")
-			return "", errors.New("Not logged in")
-		}
-		return UpdateUnitsForSale(reader), nil
-	case "displayitemsforsale", "9":
-		if SessionId == 0 {
-			fmt.Println("Need to login first")
-			return "", errors.New("Not logged in")
-		}
-		return DisplayItemsForSale(), nil
+		Logout(reader)
+	case "getsellerrating", "rating", "4":
+		GetSellerRating(reader)
+	case "getcategories", "categories", "5":
+		GetCategories()
+	case "registeritemforsale", "sell", "6":
+		RegisterItemForSale(reader)
+	case "changeitemprice", "changeprice", "7":
+		ChangeItemPrice(reader)
+	case "updateunitsforsale", "updateqty", "8":
+		UpdateUnitsForSale(reader)
+	case "displayitemsforsale", "list", "9":
+		DisplayItemsForSale()
 	case "exit", "quit", "10":
-		fmt.Println("Exiting...")
 		os.Exit(0)
 	case "help", "11":
 		print_menu()
-		return "", nil
 	default:
-		return "", errors.New("Not a real command")
+		fmt.Printf("No such command: %s\n", command)
 	}
-	return "", errors.New("Not a real command")
+}
+
+func getEnv(key, fallback string) string {
+	if value, exists := os.LookupEnv(key); exists {
+		return value
+	}
+	return fallback
+}
+func sendPostRequest(endpoint string, payload interface{}) (string, error) {
+	return sendRequest("POST", endpoint, payload)
+}
+
+func sendPutRequest(endpoint string, payload interface{}) (string, error) {
+	return sendRequest("PUT", endpoint, payload)
+}
+
+func sendRequest(method, endpoint string, payload interface{}) (string, error) {
+	jsonData, err := json.Marshal(payload)
+	if err != nil {
+		return "", err
+	}
+
+	req, err := http.NewRequest(method, serverURL+endpoint, bytes.NewBuffer(jsonData))
+	if err != nil {
+		return "", err
+	}
+	req.Header.Set("Content-Type", "application/json")
+
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		return "", fmt.Errorf("connection error: %v", err)
+	}
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return "", err
+	}
+	return string(body), nil
+}
+
+func sendGetRequest(endpoint string, params url.Values) (string, error) {
+	// Build the full URL with query parameters
+	fullURL := fmt.Sprintf("%s%s?%s", serverURL, endpoint, params.Encode())
+
+	resp, err := http.Get(fullURL)
+	if err != nil {
+		return "", fmt.Errorf("connection error: %v", err)
+	}
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return "", err
+	}
+	return string(body), nil
+}
+func DebugJSON(v interface{}) {
+	data, err := json.MarshalIndent(v, "", "  ")
+	if err != nil {
+		fmt.Println("DebugJSON error:", err)
+		return
+	}
+
+	fmt.Println(string(data))
+}
+
+func truncate(s string, maxLen int) string {
+	if len(s) <= maxLen {
+		return s
+	}
+	return s[:maxLen-3] + "..."
 }

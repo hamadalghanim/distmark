@@ -1,60 +1,65 @@
 #!/usr/bin/python
-import socket
+from flask import Flask, request
 import interface
-import threading
 
-PORT = 5000
-sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-sock.bind(("0.0.0.0", PORT))
-sock.listen(1)
+app = Flask(__name__)
 
 
-def process_command(cmd, conn):
-    lines = cmd.strip().split("\n")
-    commands = [line.strip() for line in lines if line.strip()]
-
-    if not commands:
-        conn.send(bytes("ERROR: Empty command", "utf-8"))
-        return
-
-    mappings = {
-        "createaccount": interface.createAccount,
-        "login": interface.login,
-        "logout": interface.logout,
-        "getsellerrating": interface.getSellerRating,
-        "registeritemforsale": interface.registerItemForSale,
-        "changeitemprice": interface.changeItemPrice,
-        "updateunitsforsale": interface.updateUnitsForSale,
-        "displayitemsforsale": interface.displayItemsForSale,
-        "getcategories": interface.getCategories,
-    }
-    command_name = commands[0].lower()
-
-    if command_name not in mappings:
-        conn.send(bytes(f"ERROR: Unknown command '{command_name}'", "utf-8"))
-        return
-    mappings[command_name](commands, conn)
+@app.route("/account/register", methods=["POST"])
+def create_account():
+    data = request.json
+    return interface.createAccount(data)
 
 
-print(f"Seller Frontend Server listening on port {PORT}...")
+@app.route("/account/login", methods=["POST"])
+def login():
+    data = request.json
+    return interface.login(data)
 
 
-def handle_client(conn, addr):
-    try:
-        while True:  # Keep reading commands
-            info = conn.recv(65536)
-            if not info:  # Connection closed by client
-                break
-            cmd = info.decode("utf-8").strip()
-            process_command(cmd, conn)
-    except Exception as e:
-        print(f"Error handling {addr}: {e}")
-    finally:
-        conn.close()
-        print(f"Connection from {addr} closed")
+@app.route("/account/logout", methods=["POST"])
+def logout():
+    data = request.json
+    return interface.logout(data)
 
 
-while True:
-    conn, addr = sock.accept()
-    t = threading.Thread(target=handle_client, args=(conn, addr), daemon=True)
-    t.start()
+@app.route("/seller/rating", methods=["GET"])
+def get_seller_rating():
+    # Convert query parameters (e.g., ?session_id=x) to a dictionary
+    data = request.args.to_dict()
+    return interface.getSellerRating(data)
+
+
+@app.route("/items", methods=["POST"])
+def register_item():
+    data = request.json
+    return interface.registerItemForSale(data)
+
+
+@app.route("/items/price", methods=["PUT"])
+def change_item_price():
+    data = request.json
+    return interface.changeItemPrice(data)
+
+
+@app.route("/items/quantity", methods=["PUT"])
+def update_units():
+    data = request.json
+    return interface.updateUnitsForSale(data)
+
+
+@app.route("/items", methods=["GET"])
+def display_items():
+    data = request.args.to_dict()
+    return interface.displayItemsForSale(data)
+
+
+@app.route("/categories", methods=["GET"])
+def get_categories():
+    data = request.args.to_dict()
+    return interface.getCategories(data)
+
+
+if __name__ == "__main__":
+    print("Seller Frontend REST API listening on port 5000...")
+    app.run(host="0.0.0.0", port=5000, debug=True)
