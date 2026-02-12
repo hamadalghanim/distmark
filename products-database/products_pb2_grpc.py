@@ -79,6 +79,26 @@ class SellerServiceStub(object):
                 request_serializer=products__pb2.GetCategoriesRequest.SerializeToString,
                 response_deserializer=products__pb2.CategoryListResponse.FromString,
                 _registered_method=True)
+        self.GetItem = channel.unary_unary(
+                '/products.SellerService/GetItem',
+                request_serializer=products__pb2.GetItemRequest.SerializeToString,
+                response_deserializer=products__pb2.GetItemResponse.FromString,
+                _registered_method=True)
+        self.SearchItemsForSale = channel.unary_unary(
+                '/products.SellerService/SearchItemsForSale',
+                request_serializer=products__pb2.SearchItemsRequest.SerializeToString,
+                response_deserializer=products__pb2.ItemListResponse.FromString,
+                _registered_method=True)
+        self.ProvideFeedback = channel.unary_unary(
+                '/products.SellerService/ProvideFeedback',
+                request_serializer=products__pb2.ProvideFeedbackRequest.SerializeToString,
+                response_deserializer=products__pb2.ProvideFeedbackResponse.FromString,
+                _registered_method=True)
+        self.GetSellerRatingById = channel.unary_unary(
+                '/products.SellerService/GetSellerRatingById',
+                request_serializer=products__pb2.GetSellerRatingByIdRequest.SerializeToString,
+                response_deserializer=products__pb2.RatingResponse.FromString,
+                _registered_method=True)
 
 
 class SellerServiceServicer(object):
@@ -138,6 +158,30 @@ class SellerServiceServicer(object):
         context.set_details('Method not implemented!')
         raise NotImplementedError('Method not implemented!')
 
+    def GetItem(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def SearchItemsForSale(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def ProvideFeedback(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def GetSellerRatingById(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
 
 def add_SellerServiceServicer_to_server(servicer, server):
     rpc_method_handlers = {
@@ -185,6 +229,26 @@ def add_SellerServiceServicer_to_server(servicer, server):
                     servicer.GetCategories,
                     request_deserializer=products__pb2.GetCategoriesRequest.FromString,
                     response_serializer=products__pb2.CategoryListResponse.SerializeToString,
+            ),
+            'GetItem': grpc.unary_unary_rpc_method_handler(
+                    servicer.GetItem,
+                    request_deserializer=products__pb2.GetItemRequest.FromString,
+                    response_serializer=products__pb2.GetItemResponse.SerializeToString,
+            ),
+            'SearchItemsForSale': grpc.unary_unary_rpc_method_handler(
+                    servicer.SearchItemsForSale,
+                    request_deserializer=products__pb2.SearchItemsRequest.FromString,
+                    response_serializer=products__pb2.ItemListResponse.SerializeToString,
+            ),
+            'ProvideFeedback': grpc.unary_unary_rpc_method_handler(
+                    servicer.ProvideFeedback,
+                    request_deserializer=products__pb2.ProvideFeedbackRequest.FromString,
+                    response_serializer=products__pb2.ProvideFeedbackResponse.SerializeToString,
+            ),
+            'GetSellerRatingById': grpc.unary_unary_rpc_method_handler(
+                    servicer.GetSellerRatingById,
+                    request_deserializer=products__pb2.GetSellerRatingByIdRequest.FromString,
+                    response_serializer=products__pb2.RatingResponse.SerializeToString,
             ),
     }
     generic_handler = grpc.method_handlers_generic_handler(
@@ -430,6 +494,114 @@ class SellerService(object):
             '/products.SellerService/GetCategories',
             products__pb2.GetCategoriesRequest.SerializeToString,
             products__pb2.CategoryListResponse.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
+
+    @staticmethod
+    def GetItem(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            '/products.SellerService/GetItem',
+            products__pb2.GetItemRequest.SerializeToString,
+            products__pb2.GetItemResponse.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
+
+    @staticmethod
+    def SearchItemsForSale(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            '/products.SellerService/SearchItemsForSale',
+            products__pb2.SearchItemsRequest.SerializeToString,
+            products__pb2.ItemListResponse.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
+
+    @staticmethod
+    def ProvideFeedback(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            '/products.SellerService/ProvideFeedback',
+            products__pb2.ProvideFeedbackRequest.SerializeToString,
+            products__pb2.ProvideFeedbackResponse.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
+
+    @staticmethod
+    def GetSellerRatingById(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            '/products.SellerService/GetSellerRatingById',
+            products__pb2.GetSellerRatingByIdRequest.SerializeToString,
+            products__pb2.RatingResponse.FromString,
             options,
             channel_credentials,
             insecure,

@@ -289,6 +289,103 @@ class SellerAPI(products_pb2_grpc.SellerService):
                 categories=proto_categories,
             )
 
+    def GetItem(self, request: products_pb2.GetItemRequest, context):
+        with Session(products_engine) as products_session:
+            try:
+                item = (
+                    products_session.query(Item).filter_by(id=request.item_id).first()
+                )
+            except Exception as e:
+                return products_pb2.GetItemResponse(
+                    success=False, message=f"Database error: {e}"
+                )
+
+        item = products_pb2.Item(
+            id=item.id,
+            name=item.name,
+            category_id=item.category_id,
+            keywords=item.keywords,
+            condition=item.condition,
+            sale_price=item.sale_price,
+            quantity=item.quantity,
+            seller_id=item.seller_id,
+        )
+        return products_pb2.GetItemResponse(item=item, success=True)
+
+    def SearchItemsForSale(self, request: products_pb2.SearchItemsRequest, context):
+        with Session(products_engine) as products_session:
+            try:
+                query = products_session.query(Item)
+                if request.category_id != "0":  # assuming 0 means all categories
+                    query = query.filter_by(category_id=request.category_id)
+                if len(request.keywords):
+                    for keyword in request.keywords:
+                        query = query.filter(
+                            Item.keywords.ilike(f"%{keyword.strip()}%")
+                        )
+                items = query.all()
+            except Exception as e:
+                return products_pb2.ItemListResponse(
+                    success=False, message=f"Database Error: {e}"
+                )
+
+            result = [
+                products_pb2.Item(
+                    id=item.id,
+                    name=item.name,
+                    category_id=item.category_id,
+                    keywords=item.keywords,
+                    condition=item.condition,
+                    sale_price=item.sale_price,
+                    quantity=item.quantity,
+                    seller_id=item.seller_id,
+                )
+                for item in items
+            ]
+            return products_pb2.ItemListResponse(success=True, items=result)
+
+    def ProvideFeedback(self, request: products_pb2.ProvideFeedbackRequest, context):
+        with Session(products_engine) as products_session:
+            # TODO: for later assignments check item if purchased by buyer through ItemsBought table
+            item = products_session.query(Item).filter_by(id=request.item_id).first()
+            if item is None:
+                return products_pb2.ProvideFeedbackResponse(
+                    success=False, message="Item not found"
+                )
+            feedback = request.feedback
+            item.feedback += feedback
+            item.seller.feedback += feedback
+            try:
+                products_session.add(item)
+                products_session.commit()
+            except Exception as e:
+                products_session.rollback()
+                return products_pb2.ProvideFeedbackResponse(
+                    success=False, message=f"Database error: {e}"
+                )
+            return products_pb2.ProvideFeedbackResponse(success=True)
+
+    def GetSellerRatingById(
+        self, request: products_pb2.GetSellerRatingByIdRequest, context
+    ):
+        with Session(products_engine) as products_session:
+            try:
+                seller = (
+                    products_session.query(Seller)
+                    .filter_by(id=request.seller_id)
+                    .first()
+                )
+            except Exception as e:
+                return products_pb2.RatingResponse(
+                    success=False, message=f"Database error: {e}"
+                )
+
+            if seller is None:
+                return products_pb2.RatingResponse(
+                    success=False, message="Seller not found"
+                )
+            return products_pb2.RatingResponse(feedback=seller.feedback, success=True)
+
 
 def serve():
     port = "5000"

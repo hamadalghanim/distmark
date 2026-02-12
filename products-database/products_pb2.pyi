@@ -6,6 +6,52 @@ from typing import ClassVar as _ClassVar, Optional as _Optional, Union as _Union
 
 DESCRIPTOR: _descriptor.FileDescriptor
 
+class GetItemRequest(_message.Message):
+    __slots__ = ("item_id",)
+    ITEM_ID_FIELD_NUMBER: _ClassVar[int]
+    item_id: int
+    def __init__(self, item_id: _Optional[int] = ...) -> None: ...
+
+class GetItemResponse(_message.Message):
+    __slots__ = ("success", "message", "item")
+    SUCCESS_FIELD_NUMBER: _ClassVar[int]
+    MESSAGE_FIELD_NUMBER: _ClassVar[int]
+    ITEM_FIELD_NUMBER: _ClassVar[int]
+    success: bool
+    message: str
+    item: Item
+    def __init__(self, success: bool = ..., message: _Optional[str] = ..., item: _Optional[_Union[Item, _Mapping]] = ...) -> None: ...
+
+class SearchItemsRequest(_message.Message):
+    __slots__ = ("category_id", "keywords")
+    CATEGORY_ID_FIELD_NUMBER: _ClassVar[int]
+    KEYWORDS_FIELD_NUMBER: _ClassVar[int]
+    category_id: int
+    keywords: _containers.RepeatedScalarFieldContainer[str]
+    def __init__(self, category_id: _Optional[int] = ..., keywords: _Optional[_Iterable[str]] = ...) -> None: ...
+
+class ProvideFeedbackRequest(_message.Message):
+    __slots__ = ("item_id", "feedback")
+    ITEM_ID_FIELD_NUMBER: _ClassVar[int]
+    FEEDBACK_FIELD_NUMBER: _ClassVar[int]
+    item_id: int
+    feedback: int
+    def __init__(self, item_id: _Optional[int] = ..., feedback: _Optional[int] = ...) -> None: ...
+
+class ProvideFeedbackResponse(_message.Message):
+    __slots__ = ("success", "message")
+    SUCCESS_FIELD_NUMBER: _ClassVar[int]
+    MESSAGE_FIELD_NUMBER: _ClassVar[int]
+    success: bool
+    message: str
+    def __init__(self, success: bool = ..., message: _Optional[str] = ...) -> None: ...
+
+class GetSellerRatingByIdRequest(_message.Message):
+    __slots__ = ("seller_id",)
+    SELLER_ID_FIELD_NUMBER: _ClassVar[int]
+    seller_id: int
+    def __init__(self, seller_id: _Optional[int] = ...) -> None: ...
+
 class Item(_message.Message):
     __slots__ = ("id", "name", "category_id", "keywords", "condition", "sale_price", "quantity", "seller_id")
     ID_FIELD_NUMBER: _ClassVar[int]

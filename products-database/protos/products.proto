@@ -12,10 +12,37 @@ service SellerService {
   rpc UpdateUnitsForSale (UpdateUnitsRequest) returns (UpdateUnitsResponse);
   rpc DisplayItemsForSale (DisplayItemsRequest) returns (ItemListResponse);
   rpc GetCategories (GetCategoriesRequest) returns (CategoryListResponse);
+  rpc GetItem (GetItemRequest) returns (GetItemResponse);
+  rpc SearchItemsForSale (SearchItemsRequest) returns (ItemListResponse);
+  rpc ProvideFeedback (ProvideFeedbackRequest) returns (ProvideFeedbackResponse);
+  rpc GetSellerRatingById (GetSellerRatingByIdRequest) returns (RatingResponse);
 }
 
-// --- Shared Types ---
+message GetItemRequest {
+  int32 item_id    = 1; // we don't need to check session id here because we vet them at the buyers side (might be insecure)
+}
 
+message GetItemResponse {
+  bool   success = 1;
+  string message = 2;
+  Item   item    = 3;
+}
+message SearchItemsRequest {
+  int32    category_id = 1; // 0 for all categories
+  repeated string keywords  = 2;
+}
+message ProvideFeedbackRequest {
+  int32 item_id    = 1;
+  int32 feedback   = 2; // +1 for thumbs up, -1 for thumbs down
+}
+
+message ProvideFeedbackResponse {
+  bool   success = 1;
+  string message = 2;
+}
+message GetSellerRatingByIdRequest {
+  int32 seller_id  = 1;
+}
 message Item {
   int32  id          = 1;
   string name        = 2;
