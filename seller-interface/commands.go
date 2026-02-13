@@ -1,28 +1,197 @@
 package main
 
 import (
-	"bufio"
 	"encoding/json"
 	"fmt"
 	"net/url"
 	"strconv"
 	"strings"
+
+	"github.com/charmbracelet/bubbles/textinput"
+	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
 )
 
-func CreateAccount(reader *bufio.Reader) {
-	fmt.Print("Name: ")
-	name, _ := reader.ReadString('\n')
+var (
+	focusedStyle        = lipgloss.NewStyle().Foreground(lipgloss.Color("205"))
+	blurredStyle        = lipgloss.NewStyle().Foreground(lipgloss.Color("240"))
+	cursorStyle         = focusedStyle.Copy()
+	noStyle             = lipgloss.NewStyle()
+	helpStyleForm       = blurredStyle.Copy()
+	cursorModeHelpStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("244"))
 
-	fmt.Print("Username: ")
-	username, _ := reader.ReadString('\n')
+	focusedButton = focusedStyle.Copy().Render("[ Submit ]")
+	blurredButton = fmt.Sprintf("[ %s ]", blurredStyle.Render("Submit"))
+)
 
-	fmt.Print("Password: ")
-	password, _ := reader.ReadString('\n')
+type formModel struct {
+	focusIndex int
+	inputs     []textinput.Model
+	cursorMode textinput.CursorMode
+	submitted  bool
+	values     []string
+	title      string
+}
+
+func initialFormModel(title string, fields []string, isPassword []bool) formModel {
+	m := formModel{
+		inputs: make([]textinput.Model, len(fields)),
+		title:  title,
+	}
+
+	var t textinput.Model
+	for i := range fields {
+		t = textinput.New()
+		t.Cursor.Style = cursorStyle
+		t.CharLimit = 156
+
+		if isPassword[i] {
+			t.EchoMode = textinput.EchoPassword
+			t.EchoCharacter = '•'
+		}
+
+		t.Placeholder = fields[i]
+		t.PromptStyle = focusedStyle
+		t.TextStyle = focusedStyle
+
+		if i == 0 {
+			t.Focus()
+		}
+
+		m.inputs[i] = t
+	}
+
+	return m
+}
+
+func (m formModel) Init() tea.Cmd {
+	return textinput.Blink
+}
+
+func (m formModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	switch msg := msg.(type) {
+	case tea.KeyMsg:
+		switch msg.String() {
+		case "ctrl+c", "esc":
+			return m, tea.Quit
+
+		case "tab", "shift+tab", "enter", "up", "down":
+			s := msg.String()
+
+			if s == "enter" && m.focusIndex == len(m.inputs) {
+				m.submitted = true
+				m.values = make([]string, len(m.inputs))
+				for i, input := range m.inputs {
+					m.values[i] = input.Value()
+				}
+				return m, tea.Quit
+			}
+
+			if s == "up" || s == "shift+tab" {
+				m.focusIndex--
+			} else {
+				m.focusIndex++
+			}
+
+			if m.focusIndex > len(m.inputs) {
+				m.focusIndex = 0
+			} else if m.focusIndex < 0 {
+				m.focusIndex = len(m.inputs)
+			}
+
+			cmds := make([]tea.Cmd, len(m.inputs))
+			for i := 0; i <= len(m.inputs)-1; i++ {
+				if i == m.focusIndex {
+					cmds[i] = m.inputs[i].Focus()
+					m.inputs[i].PromptStyle = focusedStyle
+					m.inputs[i].TextStyle = focusedStyle
+					continue
+				}
+				m.inputs[i].Blur()
+				m.inputs[i].PromptStyle = noStyle
+				m.inputs[i].TextStyle = noStyle
+			}
+
+			return m, tea.Batch(cmds...)
+		}
+	}
+
+	cmd := m.updateInputs(msg)
+	return m, cmd
+}
+
+func (m *formModel) updateInputs(msg tea.Msg) tea.Cmd {
+	cmds := make([]tea.Cmd, len(m.inputs))
+
+	for i := range m.inputs {
+		m.inputs[i], cmds[i] = m.inputs[i].Update(msg)
+	}
+
+	return tea.Batch(cmds...)
+}
+
+func (m formModel) View() string {
+	if m.submitted {
+		return ""
+	}
+
+	var b strings.Builder
+
+	b.WriteString(lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("205")).Render(m.title))
+	b.WriteString("\n\n")
+
+	for i := range m.inputs {
+		b.WriteString(m.inputs[i].View())
+		if i < len(m.inputs)-1 {
+			b.WriteRune('\n')
+		}
+	}
+
+	button := &blurredButton
+	if m.focusIndex == len(m.inputs) {
+		button = &focusedButton
+	}
+	fmt.Fprintf(&b, "\n\n%s\n\n", *button)
+
+	b.WriteString(helpStyleForm.Render("cursor: blink"))
+	b.WriteString(helpStyleForm.Render(" • tab/shift+tab: navigate • enter: submit • esc: cancel"))
+
+	return b.String()
+}
+
+func runForm(title string, fields []string, isPassword []bool) ([]string, bool) {
+	m := initialFormModel(title, fields, isPassword)
+	p := tea.NewProgram(m)
+
+	model, err := p.Run()
+	if err != nil {
+		fmt.Printf("Error: %v\n", err)
+		return nil, false
+	}
+
+	if m, ok := model.(formModel); ok {
+		return m.values, m.submitted
+	}
+
+	return nil, false
+}
+
+func CreateAccountInteractive() {
+	values, submitted := runForm(
+		"Create New Account",
+		[]string{"Name", "Username", "Password"},
+		[]bool{false, false, true},
+	)
+
+	if !submitted {
+		fmt.Println("Cancelled.")
+		return
+	}
 
 	req := RegisterRequest{
-		Name:     strings.TrimSpace(name),
-		Username: strings.TrimSpace(username),
-		Password: strings.TrimSpace(password),
+		Name:     strings.TrimSpace(values[0]),
+		Username: strings.TrimSpace(values[1]),
+		Password: strings.TrimSpace(values[2]),
 	}
 
 	resp, err := sendPostRequest("/account/register", req)
@@ -34,22 +203,27 @@ func CreateAccount(reader *bufio.Reader) {
 	json.Unmarshal([]byte(resp), &result)
 
 	if result.Result == "success" {
-		fmt.Printf("Registered with seller %d\n", result.SellerID)
+		fmt.Printf("\n✓ Registered with seller ID: %d\n", result.SellerID)
 	} else {
-		fmt.Println(result.Message)
+		fmt.Printf("\n✗ %s\n", result.Message)
 	}
 }
 
-func Login(reader *bufio.Reader) {
-	fmt.Print("Username: ")
-	username, _ := reader.ReadString('\n')
+func LoginInteractive() {
+	values, submitted := runForm(
+		"Login",
+		[]string{"Username", "Password"},
+		[]bool{false, true},
+	)
 
-	fmt.Print("Password: ")
-	password, _ := reader.ReadString('\n')
+	if !submitted {
+		fmt.Println("Cancelled.")
+		return
+	}
 
 	req := LoginRequest{
-		Username: strings.TrimSpace(username),
-		Password: strings.TrimSpace(password),
+		Username: strings.TrimSpace(values[0]),
+		Password: strings.TrimSpace(values[1]),
 	}
 
 	resp, err := sendPostRequest("/account/login", req)
@@ -63,15 +237,14 @@ func Login(reader *bufio.Reader) {
 	if result.Result == "success" {
 		if result.SessionID != 0 {
 			SessionId = result.SessionID
-			fmt.Printf("Logged in with Session ID: %d\n", SessionId)
+			fmt.Printf("\n✓ Logged in with Session ID: %d\n", SessionId)
 		}
 	} else {
-		fmt.Println(result.Message)
+		fmt.Printf("\n✗ %s\n", result.Message)
 	}
-
 }
 
-func Logout(reader *bufio.Reader) {
+func LogoutInteractive() {
 	req := LogoutRequest{
 		SessionID: SessionId,
 	}
@@ -86,13 +259,13 @@ func Logout(reader *bufio.Reader) {
 
 	if result.Result == "success" {
 		SessionId = 0
-		fmt.Println("Session cleared.")
+		fmt.Println("\n✓ Session cleared.")
 	} else {
-		fmt.Println(result.Message)
+		fmt.Printf("\n✗ %s\n", result.Message)
 	}
 }
 
-func GetSellerRating(reader *bufio.Reader) {
+func GetSellerRatingInteractive() {
 	params := url.Values{}
 	params.Add("session_id", strconv.Itoa(SessionId))
 
@@ -108,34 +281,30 @@ func GetSellerRating(reader *bufio.Reader) {
 		sign := ""
 		if result.Feedback > 0 {
 			sign = "+"
-		} else {
-			sign = "-"
 		}
-		fmt.Printf("Seller rating: %s%d\n", sign, int(result.Feedback))
-
+		fmt.Printf("\n✓ Seller rating: %s%d\n", sign, int(result.Feedback))
 	} else {
-		fmt.Println(result.Message)
+		fmt.Printf("\n✗ %s\n", result.Message)
 	}
 }
 
-func RegisterItemForSale(reader *bufio.Reader) {
-	fmt.Print("Item Name: ")
-	name, _ := reader.ReadString('\n')
+func RegisterItemForSaleInteractive() {
+	values, submitted := runForm(
+		"Register New Item",
+		[]string{"Item Name", "Category ID", "Price", "Quantity"},
+		[]bool{false, false, false, false},
+	)
 
-	fmt.Print("Category ID: ")
-	category, _ := reader.ReadString('\n')
-
-	fmt.Print("Price: ")
-	price, _ := reader.ReadString('\n')
-
-	fmt.Print("Quantity: ")
-	qty, _ := reader.ReadString('\n')
+	if !submitted {
+		fmt.Println("Cancelled.")
+		return
+	}
 
 	req := RegisterItemRequest{
-		Name:      strings.TrimSpace(name),
-		Category:  strings.TrimSpace(category),
-		Price:     strings.TrimSpace(price),
-		Qty:       strings.TrimSpace(qty),
+		Name:      strings.TrimSpace(values[0]),
+		Category:  strings.TrimSpace(values[1]),
+		Price:     strings.TrimSpace(values[2]),
+		Qty:       strings.TrimSpace(values[3]),
 		SessionID: SessionId,
 	}
 
@@ -148,22 +317,27 @@ func RegisterItemForSale(reader *bufio.Reader) {
 	json.Unmarshal([]byte(resp), &result)
 
 	if result.Result == "success" {
-		fmt.Printf("Item registered with ID: %d\n", result.ItemID)
+		fmt.Printf("\n✓ Item registered with ID: %d\n", result.ItemID)
 	} else {
-		fmt.Println(result.Message)
+		fmt.Printf("\n✗ %s\n", result.Message)
 	}
 }
 
-func ChangeItemPrice(reader *bufio.Reader) {
-	fmt.Print("Item ID: ")
-	itemID, _ := reader.ReadString('\n')
+func ChangeItemPriceInteractive() {
+	values, submitted := runForm(
+		"Change Item Price",
+		[]string{"Item ID", "New Price"},
+		[]bool{false, false},
+	)
 
-	fmt.Print("New Price: ")
-	newPrice, _ := reader.ReadString('\n')
+	if !submitted {
+		fmt.Println("Cancelled.")
+		return
+	}
 
 	req := ChangePriceRequest{
-		ItemID:    strings.TrimSpace(itemID),
-		NewPrice:  strings.TrimSpace(newPrice),
+		ItemID:    strings.TrimSpace(values[0]),
+		NewPrice:  strings.TrimSpace(values[1]),
 		SessionID: SessionId,
 	}
 
@@ -176,22 +350,27 @@ func ChangeItemPrice(reader *bufio.Reader) {
 	json.Unmarshal([]byte(resp), &result)
 
 	if result.Result == "success" {
-		fmt.Printf("Price updated to %.2f\n", result.CurrentPrice)
+		fmt.Printf("\n✓ Price updated to $%.2f\n", result.CurrentPrice)
 	} else {
-		fmt.Println(result.Message)
+		fmt.Printf("\n✗ %s\n", result.Message)
 	}
 }
 
-func UpdateUnitsForSale(reader *bufio.Reader) {
-	fmt.Print("Item ID: ")
-	itemID, _ := reader.ReadString('\n')
+func UpdateUnitsForSaleInteractive() {
+	values, submitted := runForm(
+		"Update Item Quantity",
+		[]string{"Item ID", "New Quantity"},
+		[]bool{false, false},
+	)
 
-	fmt.Print("New Quantity: ")
-	newQty, _ := reader.ReadString('\n')
+	if !submitted {
+		fmt.Println("Cancelled.")
+		return
+	}
 
 	req := ChangeQuantityRequest{
-		ItemID:    strings.TrimSpace(itemID),
-		NewQty:    strings.TrimSpace(newQty),
+		ItemID:    strings.TrimSpace(values[0]),
+		NewQty:    strings.TrimSpace(values[1]),
 		SessionID: SessionId,
 	}
 
@@ -204,13 +383,13 @@ func UpdateUnitsForSale(reader *bufio.Reader) {
 	json.Unmarshal([]byte(resp), &result)
 
 	if result.Result == "success" {
-		fmt.Printf("Quantity updated to %d\n", result.CurrentQuantity)
+		fmt.Printf("\n✓ Quantity updated to %d\n", result.CurrentQuantity)
 	} else {
-		fmt.Println(result.Message)
+		fmt.Printf("\n✗ %s\n", result.Message)
 	}
 }
 
-func DisplayItemsForSale() {
+func DisplayItemsForSaleInteractive() {
 	params := url.Values{}
 	params.Add("session_id", strconv.Itoa(SessionId))
 
@@ -223,17 +402,17 @@ func DisplayItemsForSale() {
 	json.Unmarshal([]byte(resp), &result)
 
 	if result.Result != "success" {
-		fmt.Println(result.Message)
+		fmt.Printf("\n✗ %s\n", result.Message)
 		return
 	}
 
-	fmt.Println("Items For Sale")
-	fmt.Println("--------------")
+	fmt.Println("\n" + lipgloss.NewStyle().Bold(true).Render("Items For Sale"))
+	fmt.Println(strings.Repeat("─", 70))
 
 	printItems(result.Items)
 }
 
-func GetCategories() {
+func GetCategoriesInteractive() {
 	params := url.Values{}
 	params.Add("session_id", strconv.Itoa(SessionId))
 
@@ -246,12 +425,12 @@ func GetCategories() {
 	json.Unmarshal([]byte(resp), &result)
 
 	if result.Result != "success" {
-		fmt.Println(result.Message)
+		fmt.Printf("\n✗ %s\n", result.Message)
 		return
 	}
 
-	fmt.Println("Categories")
-	fmt.Println("----------")
+	fmt.Println("\n" + lipgloss.NewStyle().Bold(true).Render("Categories"))
+	fmt.Println(strings.Repeat("─", 50))
 
 	for _, c := range result.Categories {
 		fmt.Printf("[%d] %s\n", c.ID, c.Name)

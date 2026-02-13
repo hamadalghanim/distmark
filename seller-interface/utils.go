@@ -64,49 +64,6 @@ func connectWithRetry(address string) (net.Conn, error) {
 	return nil, fmt.Errorf("failed to connect after %d attempts", maxReconnectAttempts)
 }
 
-func print_menu() {
-	fmt.Print("Available commands:\n" +
-		"1. \033[1mCreateAccount\033[0m - Sets up username and password, returns seller ID\n" +
-		"2. \033[1mLogin\033[0m - Login with username and password (starts session)\n" +
-		"3. \033[1mLogout\033[0m - Ends active seller session\n" +
-		"4. \033[1mGetSellerRating\033[0m - Returns feedback for current seller\n" +
-		"5. \033[1mGetCategories\033[0m - Get a list of categories\n" +
-		"6. \033[1mRegisterItemForSale\033[0m - Register item with attributes and quantity, returns item ID\n" +
-		"7. \033[1mChangeItemPrice\033[0m - Update item price by item ID\n" +
-		"8. \033[1mUpdateUnitsForSale\033[0m - Remove quantity from item ID\n" +
-		"9. \033[1mDisplayItemsForSale\033[0m - Display items on sale by current seller\n" +
-		"10. \033[1mExit\033[0m or \033[1mQuit\033[0m - Exit the application\n" +
-		"11. \033[1mHelp\033[0m - Show this menu\n")
-}
-func dispatch_command(command string, reader *bufio.Reader) {
-	switch command {
-	case "createaccount", "register", "1":
-		CreateAccount(reader)
-	case "login", "2":
-		Login(reader)
-	case "logout", "3":
-		Logout(reader)
-	case "getsellerrating", "rating", "4":
-		GetSellerRating(reader)
-	case "getcategories", "categories", "5":
-		GetCategories()
-	case "registeritemforsale", "sell", "6":
-		RegisterItemForSale(reader)
-	case "changeitemprice", "changeprice", "7":
-		ChangeItemPrice(reader)
-	case "updateunitsforsale", "updateqty", "8":
-		UpdateUnitsForSale(reader)
-	case "displayitemsforsale", "list", "9":
-		DisplayItemsForSale()
-	case "exit", "quit", "10":
-		os.Exit(0)
-	case "help", "11":
-		print_menu()
-	default:
-		fmt.Printf("No such command: %s\n", command)
-	}
-}
-
 func getEnv(key, fallback string) string {
 	if value, exists := os.LookupEnv(key); exists {
 		return value
