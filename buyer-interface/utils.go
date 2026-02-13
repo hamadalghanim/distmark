@@ -71,7 +71,7 @@ func dispatch_command(command string, reader *bufio.Reader) {
 	case "login", "2":
 		Login(reader)
 	case "logout", "3":
-		Logout(reader)
+		Logout()
 	case "getitem", "item", "4":
 		GetItem(reader)
 	case "getcategories", "categories", "5":
@@ -95,7 +95,7 @@ func dispatch_command(command string, reader *bufio.Reader) {
 	case "getbuyerpurchases", "purchases", "14":
 		GetBuyerPurchases()
 	case "makepurchase", "buy", "15":
-		MakePurchase()
+		MakePurchase(reader)
 	case "exit", "quit", "16":
 		os.Exit(0)
 	case "help", "17":

@@ -24,6 +24,17 @@ service CustomersService {
       returns (GetBuyerPurchasesResponse);
 
   rpc GetBuyer(GetBuyerRequest) returns (GetBuyerResponse);
+
+  rpc MakePurchase(MakePurchaseRequest) returns (MakePurchaseResponse);
+}
+
+
+message MakePurchaseRequest {
+  int32 session_id = 1;
+}
+message MakePurchaseResponse {
+  bool success = 1;
+  string message = 2;
 }
 
 message GetBuyerRequest {
@@ -33,6 +44,7 @@ message GetBuyerResponse {
   bool success = 1;
   string message = 2;
   int32 buyer_id = 3;
+  string name = 4;
 }
 
 

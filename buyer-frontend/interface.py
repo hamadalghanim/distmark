@@ -3,6 +3,7 @@ from proto import customers_pb2
 from proto import customers_pb2_grpc
 from proto import products_pb2
 from proto import products_pb2_grpc
+from zeep import Client
 import os
 
 # gRPC setup
@@ -19,6 +20,11 @@ _customers_stub = customers_pb2_grpc.CustomersServiceStub(_customers_channel)
 
 _products_channel = grpc.insecure_channel(PRODUCTS_GRPC_ADDRESS)
 _products_stub = products_pb2_grpc.SellerServiceStub(_products_channel)
+
+# soap setup
+WSDL_PAYMENT_HOST = os.getenv("WSDL_PAYMENT_HOST", "payments-api")
+WSDL_PAYMENT_PORT = os.getenv("WSDL_PAYMENT_PORT", "5000")
+PAYMENT_ADDRESS = f"http://{WSDL_PAYMENT_HOST}:{WSDL_PAYMENT_PORT}/?wsdl"
 
 
 def _item_to_dict(item):
@@ -320,6 +326,7 @@ def provideFeedback(data):
 
         if not buyer_response.success:
             return {"result": "error", "message": buyer_response.message}
+        # TODO: have buyer api to check if item is bought
 
         # Provide feedback via products service
         feedback_request = products_pb2.ProvideFeedbackRequest(
@@ -394,23 +401,107 @@ def getBuyerPurchases(data):
 def makePurchase(data):
     try:
         session_id = int(data.get("session_id"))
+        card_number = data.get("card_number")
+        expiration_date = data.get("expiration_date")
+        security_code = data.get("security_code")
     except (TypeError, ValueError):
         return {"result": "error", "message": "Invalid session_id"}
 
     try:
-        # For now, just check if cart has items
+        # Get cart and buyer info
         cart_request = customers_pb2.GetCartRequest(session_id=session_id)
         cart_response = _customers_stub.GetCart(cart_request)
+
+        buyer_request = customers_pb2.GetBuyerRequest(session_id=session_id)
+        buyer_response = _customers_stub.GetBuyer(buyer_request)
 
         if not cart_response.success:
             return {"result": "error", "message": cart_response.message}
 
-        if not cart_response.session_cart:
+        if not buyer_response.success:
+            return {"result": "error", "message": buyer_response.message}
+
+        if not cart_response.saved_cart:
             return {
                 "result": "error",
                 "message": "Remote Cart is empty, nothing to purchase",
             }
 
-        return {"result": "error", "message": "Not Implemented Yet"}
+        # Prepare items for reservation
+        items_to_buy = [
+            products_pb2.ItemQuantity(
+                item_id=cart_item.item_id, quantity=cart_item.quantity
+            )
+            for cart_item in cart_response.saved_cart
+        ]
+
+        amount = 0
+        # Get amounts and multiply with quantity
+        for cart_item in cart_response.saved_cart:
+            item_request = products_pb2.GetItemRequest(item_id=cart_item.item_id)
+            item_response = _products_stub.GetItem(item_request)
+
+            if item_response.success:
+                amount += item_response.item.sale_price * cart_item.quantity
+            else:
+                return {
+                    "result": "error",
+                    "message": item_response.message,
+                }
+
+        # Call payment service
+        name = buyer_response.name
+        payment_result = call_payment_service(
+            name=name,
+            card_number=card_number,
+            expiration_date=expiration_date,
+            security_code=security_code,
+            amount=amount,
+        )
+        if payment_result == "Yes":
+            # Payment successful - deduct items permanently from the seller
+            seller_purchase_request = products_pb2.MakePurchaseRequest(
+                items=items_to_buy
+            )
+            seller_purchase_response = _products_stub.MakePurchase(
+                seller_purchase_request
+            )
+
+            if not seller_purchase_response.success:
+                # This shouldn't happen since we reserved, but handle it
+                return {"result": "error", "message": seller_purchase_response.message}
+
+            # Record purchase in customer database
+            purchase_request = customers_pb2.MakePurchaseRequest(session_id=session_id)
+            purchase_response = _customers_stub.MakePurchase(purchase_request)
+            if not purchase_response.success:
+                return {"result": "error", "message": purchase_response.message}
+
+            clear_cart_request = customers_pb2.ClearCartRequest(session_id=session_id)
+            clear_cart_response = _customers_stub.ClearCart(clear_cart_request)
+
+            if not clear_cart_response.success:
+                pass  # we kinda dont care because the user can see the cart and clear it if he doesn't
+
+            return {"result": "success", "message": "Purchase completed successfully"}
+        else:
+            return {"result": "error", "message": "Payment declined"}
+
     except grpc.RpcError as e:
         return {"result": "error", "message": f"RPC error: {e.details()}"}
+
+
+def call_payment_service(name, card_number, expiration_date, security_code, amount):
+    # Create a SOAP client
+    client = Client(PAYMENT_ADDRESS)
+
+    # Call the pay service
+    result = client.service.pay(
+        name=name,
+        card_number=card_number,
+        expiration_date=expiration_date,
+        security_code=security_code,
+        amount=amount,
+    )
+
+    return result

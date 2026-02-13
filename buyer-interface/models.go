@@ -127,9 +127,15 @@ type SellerRatingResponse struct {
 	Feedback float64 `json:"feedback"`
 }
 
-//////////////////////////////////////////////////////
+// ////////////////////////////////////////////////////
 // Purchase Models
-//////////////////////////////////////////////////////
+// ////////////////////////////////////////////////////
+type MakePurchaseRequest struct {
+	SessionID      int    `json:"session_id"`
+	CardNumber     string `json:"card_number"`
+	ExpirationDate string `json:"expiration_date"`
+	SecurityCode   string `json:"security_code"`
+}
 
 type PurchasesResponse struct {
 	BaseResponse

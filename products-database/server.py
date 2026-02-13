@@ -415,6 +415,49 @@ class SellerAPI(products_pb2_grpc.SellerService):
                 )
             return products_pb2.RatingResponse(feedback=seller.feedback, success=True)
 
+    def MakePurchase(
+        self, request: products_pb2.MakePurchaseRequest, context
+    ) -> products_pb2.MakePurchaseResponse:
+        with Session(products_engine) as products_session:
+            try:
+                for item_qty in request.items:
+                    item = (
+                        products_session.query(Item)
+                        .filter_by(id=item_qty.item_id)
+                        .first()
+                    )
+
+                    if item is None:
+                        products_session.rollback()
+                        return products_pb2.MakePurchaseResponse(
+                            success=False, message=f"Item {item_qty.item_id} not found"
+                        )
+
+                    if item.quantity < item_qty.quantity:
+                        products_session.rollback()
+                        return products_pb2.MakePurchaseResponse(
+                            success=False,
+                            message=f"Insufficient quantity for item {item.name}",
+                        )
+
+                    # Deduct the quantity
+                    item.quantity -= item_qty.quantity
+
+                    # Increment seller's items_sold counter
+                    item.seller.items_sold += item_qty.quantity
+
+                products_session.commit()
+
+                return products_pb2.MakePurchaseResponse(
+                    success=True, message="Items deducted successfully"
+                )
+
+            except Exception as e:
+                products_session.rollback()
+                return products_pb2.MakePurchaseResponse(
+                    success=False, message=f"Database error: {e}"
+                )
+
 
 def seed(products_engine):
     print("Seeding categories...")

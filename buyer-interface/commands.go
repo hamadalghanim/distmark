@@ -27,6 +27,7 @@ func CreateAccount(reader *bufio.Reader) {
 
 	resp, err := sendPostRequest("/account/register", req)
 	if err != nil {
+		fmt.Println("Error sending request:", err)
 		return
 	}
 
@@ -53,6 +54,7 @@ func Login(reader *bufio.Reader) {
 
 	resp, err := sendPostRequest("/account/login", req)
 	if err != nil {
+		fmt.Println("Error sending request:", err)
 		return
 	}
 
@@ -69,13 +71,14 @@ func Login(reader *bufio.Reader) {
 	}
 }
 
-func Logout(reader *bufio.Reader) {
+func Logout() {
 	req := LogoutRequest{
 		SessionID: SessionId,
 	}
 
 	resp, err := sendPostRequest("/account/logout", req)
 	if err != nil {
+		fmt.Println("Error sending request:", err)
 		return
 	}
 
@@ -100,6 +103,7 @@ func GetItem(reader *bufio.Reader) {
 	endpoint := fmt.Sprintf("/items/%s", strings.TrimSpace(itemID))
 	resp, err := sendGetRequest(endpoint, params)
 	if err != nil {
+		fmt.Println("Error sending request:", err)
 		return
 	}
 
@@ -119,6 +123,7 @@ func GetCategories() {
 
 	resp, err := sendGetRequest("/categories", params)
 	if err != nil {
+		fmt.Println("Error sending request:", err)
 		return
 	}
 
@@ -154,6 +159,7 @@ func SearchItemsForSale(reader *bufio.Reader) {
 
 	resp, err := sendGetRequest("/items/search", params)
 	if err != nil {
+		fmt.Println("Error sending request:", err)
 		return
 	}
 
@@ -186,6 +192,7 @@ func AddItemToCart(reader *bufio.Reader) {
 
 	resp, err := sendPostRequest("/cart/items", req)
 	if err != nil {
+		fmt.Println("Error sending request:", err)
 		return
 	}
 
@@ -211,6 +218,7 @@ func RemoveItemFromCart(reader *bufio.Reader) {
 	endpoint := fmt.Sprintf("/cart/items/%s", strings.TrimSpace(itemID))
 	resp, err := sendDeleteRequest(endpoint, req)
 	if err != nil {
+		fmt.Println("Error sending request:", err)
 		return
 	}
 
@@ -230,6 +238,7 @@ func DisplayCart() {
 
 	resp, err := sendGetRequest("/cart", params)
 	if err != nil {
+		fmt.Println("Error sending request:", err)
 		return
 	}
 
@@ -268,6 +277,7 @@ func SaveCart() {
 
 	resp, err := sendPostRequest("/cart/save", req)
 	if err != nil {
+		fmt.Println("Error sending request:", err)
 		return
 	}
 
@@ -288,6 +298,7 @@ func ClearCart() {
 
 	resp, err := sendPostRequest("/cart/clear", req)
 	if err != nil {
+		fmt.Println("Error sending request:", err)
 		return
 	}
 
@@ -327,6 +338,7 @@ func ProvideFeedback(reader *bufio.Reader) {
 
 	resp, err := sendPostRequest("/feedback", req)
 	if err != nil {
+		fmt.Println("Error sending request:", err)
 		return
 	}
 
@@ -350,6 +362,7 @@ func GetSellerRating(reader *bufio.Reader) {
 	endpoint := fmt.Sprintf("/seller/%s/rating", strings.TrimSpace(sellerID))
 	resp, err := sendGetRequest(endpoint, params)
 	if err != nil {
+		fmt.Println("Error sending request:", err)
 		return
 	}
 
@@ -369,6 +382,7 @@ func GetBuyerPurchases() {
 
 	resp, err := sendGetRequest("/purchases", params)
 	if err != nil {
+		fmt.Println("Error sending request:", err)
 		return
 	}
 
@@ -392,13 +406,29 @@ func GetBuyerPurchases() {
 	}
 }
 
-func MakePurchase() {
-	req := SessionRequest{
-		SessionID: SessionId,
+func MakePurchase(reader *bufio.Reader) {
+	fmt.Print("Card Number: ")
+	CardNumber, _ := reader.ReadString('\n')
+	CardNumber = strings.TrimSpace(CardNumber)
+
+	fmt.Print("Expiration Date (MM/YY): ")
+	ExpirationDate, _ := reader.ReadString('\n')
+	ExpirationDate = strings.TrimSpace(ExpirationDate)
+
+	fmt.Print("Security Code (CVV): ")
+	SecurityCode, _ := reader.ReadString('\n')
+	SecurityCode = strings.TrimSpace(SecurityCode)
+
+	req := MakePurchaseRequest{
+		SessionID:      SessionId,
+		CardNumber:     CardNumber,
+		ExpirationDate: ExpirationDate,
+		SecurityCode:   SecurityCode,
 	}
 
 	resp, err := sendPostRequest("/purchase", req)
 	if err != nil {
+		fmt.Println("Error sending request:", err)
 		return
 	}
 

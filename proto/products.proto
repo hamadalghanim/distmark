@@ -17,6 +17,7 @@ service SellerService {
   rpc SearchItemsForSale (SearchItemsRequest) returns (ItemListResponse);
   rpc ProvideFeedback (ProvideFeedbackRequest) returns (ProvideFeedbackResponse);
   rpc GetSellerRatingById (GetSellerRatingByIdRequest) returns (RatingResponse);
+  rpc MakePurchase (MakePurchaseRequest) returns (MakePurchaseResponse);
 }
 
 message GetItemRequest {
@@ -172,4 +173,19 @@ message CategoryListResponse {
 }
 
 message GetCategoriesClientRequest {
+}
+
+// Purchase
+message ItemQuantity {
+  int32 item_id = 1;
+  int32 quantity = 2;
+}
+
+message MakePurchaseRequest {
+  repeated ItemQuantity items = 1;
+}
+
+message MakePurchaseResponse {
+  bool success = 1;
+  string message = 2;
 }

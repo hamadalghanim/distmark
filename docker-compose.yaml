@@ -24,6 +24,8 @@ services:
     depends_on:
       customers-database:
         condition: service_healthy
+  payments-api:
+    build: payments-api
   customers-database:
     # to connect to the customers database we use customers-database:5432
     image: postgres:18

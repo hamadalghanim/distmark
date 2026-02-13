@@ -106,7 +106,7 @@ class CustomerAPI(customers_pb2_grpc.CustomersServiceServicer):
                 )
             session = result.session
             return customers_pb2.GetBuyerResponse(
-                success=True, buyer_id=session.buyer_id
+                success=True, buyer_id=session.buyer_id, name=session.buyer.name
             )
 
     def Logout(
@@ -365,9 +365,6 @@ class CustomerAPI(customers_pb2_grpc.CustomersServiceServicer):
                     message="Session not found or expired",
                 )
             session = result.session
-            if session is None:
-                return
-
             try:
                 items_bought: list[ItemsBought] = (
                     customers_session.query(ItemsBought)
@@ -388,6 +385,52 @@ class CustomerAPI(customers_pb2_grpc.CustomersServiceServicer):
             return customers_pb2.GetBuyerPurchasesResponse(
                 success=True, message="Purchases retrieved", purchases=purchases
             )
+
+    def MakePurchase(
+        self, request: customers_pb2.MakePurchaseRequest, context
+    ) -> customers_pb2.MakePurchaseResponse:
+        with Session(customers_engine) as customers_session:
+            result = getAndValidateSession(request.session_id, customers_session)
+            if result.error:
+                return customers_pb2.MakePurchaseResponse(
+                    success=False,
+                    message="Session not found or expired",
+                )
+            session = result.session
+            saved_cart = (
+                customers_session.query(Cart)
+                .filter_by(buyer_id=session.buyer_id, saved=True)
+                .first()
+            )
+            try:
+                # Get all cart items for this buyer
+                cart_items = (
+                    customers_session.query(CartItem)
+                    .filter_by(cart_id=saved_cart.id)
+                    .all()
+                )
+
+                # Create ItemsBought records for each cart item
+                for cart_item in cart_items:
+                    item_bought = ItemsBought(
+                        buyer_id=session.buyer_id,
+                        item_id=cart_item.item_id,
+                        quantity=cart_item.quantity,
+                    )
+                    customers_session.add(item_bought)
+
+                # Commit the transaction
+                customers_session.commit()
+
+                return customers_pb2.MakePurchaseResponse(
+                    success=True,
+                )
+
+            except Exception as e:
+                customers_session.rollback()
+                return customers_pb2.MakePurchaseResponse(
+                    success=False, message=f"Purchase failed: {e}"
+                )
 
 
 def serve() -> None:
