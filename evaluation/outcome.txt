@@ -1,17 +1,17 @@
 Starting Scenario 0...
-Total time taken: 4.16 seconds
-Average response time: 0.0021 seconds
-Server throughput: 480.96 operations/second
+Total time taken: 6.10 seconds
+Average response time: 0.0030 seconds
+Server throughput: 327.95 operations/second
 Scenario 0 completed.
 
 Starting Scenario 1...
-Total time taken: 26.86 seconds
-Average response time: 0.0013 seconds
-Server throughput: 744.65 operations/second
+Total time taken: 42.17 seconds
+Average response time: 0.0021 seconds
+Server throughput: 474.30 operations/second
 Scenario 1 completed.
 
 Starting Scenario 2...
-Total time taken: 293.80 seconds
-Average response time: 0.0015 seconds
-Server throughput: 680.74 operations/second
+Total time taken: 407.50 seconds
+Average response time: 0.0020 seconds
+Server throughput: 490.80 operations/second
 Scenario 2 completed.
