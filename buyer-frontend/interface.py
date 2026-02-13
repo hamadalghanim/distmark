@@ -326,7 +326,22 @@ def provideFeedback(data):
 
         if not buyer_response.success:
             return {"result": "error", "message": buyer_response.message}
-        # TODO: have buyer api to check if item is bought
+
+        get_purchases_request = customers_pb2.GetBuyerPurchasesRequest(
+            session_id=session_id
+        )
+        get_purchases_response = _customers_stub.GetBuyerPurchases(
+            get_purchases_request
+        )
+        if not get_purchases_response.success:
+            return {"result": "error", "message": get_purchases_response.message}
+
+        ids = [item.item_id for item in get_purchases_response.purchases]
+        if item_id not in ids:
+            return {
+                "result": "error",
+                "message": "You never bought that item you cant rate it",
+            }
 
         # Provide feedback via products service
         feedback_request = products_pb2.ProvideFeedbackRequest(

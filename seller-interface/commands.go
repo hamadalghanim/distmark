@@ -105,7 +105,14 @@ func GetSellerRating(reader *bufio.Reader) {
 	json.Unmarshal([]byte(resp), &result)
 
 	if result.Result == "success" {
-		fmt.Printf("Seller rating: %f\n", result.Feedback)
+		sign := ""
+		if result.Feedback > 0 {
+			sign = "+"
+		} else {
+			sign = "-"
+		}
+		fmt.Printf("Seller rating: %s%d\n", sign, int(result.Feedback))
+
 	} else {
 		fmt.Println(result.Message)
 	}
