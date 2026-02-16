@@ -2,7 +2,7 @@ from concurrent import futures
 import datetime
 import grpc
 import logging
-from db import Buyer, BuyerSession, Cart, CartItem, ItemsBought
+from db import Buyer, BuyerSession, Cart, CartItem, ItemsBought, BaseCustomers
 from sqlalchemy.orm import Session
 
 # Import generated proto files (after running protoc)
@@ -434,6 +434,7 @@ class CustomerAPI(customers_pb2_grpc.CustomersServiceServicer):
 
 
 def serve() -> None:
+    BaseCustomers.metadata.create_all(customers_engine)
     """Start the gRPC server."""
     port = "5000"
     server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))

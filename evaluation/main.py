@@ -10,6 +10,56 @@ BUYER_BASE_URL = "http://localhost:8001"
 SELLER_BASE_URL = "http://localhost:8000"
 
 
+def select_client_counts():
+    print("\nNumber of clients per scenario")
+    print("1. Default ([1, 10, 100])")
+    print("2. Custom")
+
+    choice = input("Select option (1 or 2): ").strip()
+
+    if choice == "2":
+        counts_input = input(
+            "Enter comma-separated client counts (e.g., 1,5,20,50): "
+        ).strip()
+        try:
+            counts = [int(x.strip()) for x in counts_input.split(",")]
+            return counts
+        except ValueError:
+            print("Invalid input, using default")
+            return [1, 10, 100]
+    else:
+        return [1, 10, 100]
+
+
+def select_environment(service_name, local_url, gcp_url):
+    print(f"\n{service_name}")
+    print(f"1. Local ({local_url})")
+    print(f"2. GCP ({gcp_url})")
+    print("3. Custom")
+
+    choice = input("Select environment (1, 2, or 3): ").strip()
+
+    if choice == "1":
+        return local_url
+    elif choice == "2":
+        return gcp_url
+    elif choice == "3":
+        return input("Enter custom server URL: ").strip()
+    else:
+        print("Invalid choice, defaulting to local")
+        return local_url
+
+
+BUYER_BASE_URL = select_environment(
+    "Buyer Frontend Client", "http://localhost:8001", "http://34.72.178.240:80"
+)
+
+# Select Seller Frontend
+SELLER_BASE_URL = select_environment(
+    "Seller Frontend Client", "http://localhost:8000", "http://34.70.9.107:80"
+)
+
+
 def perform_random_buyer_cmd(session_id):
     cmds = [
         lambda: requests.get(
@@ -204,6 +254,12 @@ def run_buyer_client(id):
 
 
 def main():
+
+    number_of_clients_per_scenario = select_client_counts()
+    print("\nConfiguration:")
+    print(f"Buyer:  {BUYER_BASE_URL}")
+    print(f"Seller: {SELLER_BASE_URL}")
+
     for scenario in range(len(number_of_clients_per_scenario)):
         print(f"Starting Scenario {scenario}...")
         clients = number_of_clients_per_scenario[scenario]
