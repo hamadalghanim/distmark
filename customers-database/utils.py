@@ -2,7 +2,7 @@ import datetime
 import os
 from sqlalchemy import create_engine
 from db import BuyerSession as TblSession
-
+from sqlalchemy.engine import URL
 from sqlalchemy.orm import Session
 from dataclasses import dataclass
 from typing import Optional
@@ -14,7 +14,14 @@ DB_PORT = os.environ.get("DB_PORT", "5432")
 DB_NAME = os.environ.get("DB_NAME", "customers")
 
 customers_engine = create_engine(
-    f"postgresql+psycopg2://{DB_USER}:{DB_PASS}@{DB_HOST}:{DB_PORT}/{DB_NAME}",
+    URL.create(
+        "postgresql+psycopg2",
+        username=DB_USER,
+        password=DB_PASS,
+        host=DB_HOST,
+        port=DB_PORT,
+        database=DB_NAME,
+    ),
     pool_size=20,
     max_overflow=0,
 )

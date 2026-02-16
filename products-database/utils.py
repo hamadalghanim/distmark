@@ -6,6 +6,7 @@ from db import Session as TblSession
 from sqlalchemy.orm import Session
 from dataclasses import dataclass
 from typing import Optional
+from sqlalchemy.engine import URL
 
 DB_USER = os.environ.get("DB_USER", "user")
 DB_PASS = os.environ.get("DB_PASS", "pass")
@@ -14,7 +15,14 @@ DB_PORT = os.environ.get("DB_PORT", "5432")
 DB_NAME = os.environ.get("DB_NAME", "products")
 
 products_engine = create_engine(
-    f"postgresql+psycopg2://{DB_USER}:{DB_PASS}@{DB_HOST}:{DB_PORT}/{DB_NAME}",
+    URL.create(
+        "postgresql+psycopg2",
+        username=DB_USER,
+        password=DB_PASS,
+        host=DB_HOST,
+        port=DB_PORT,
+        database=DB_NAME,
+    ),
     pool_size=20,
     max_overflow=0,
 )
