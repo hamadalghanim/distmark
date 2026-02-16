@@ -1,0 +1,6 @@
+{
+    "yaml.schemas": {
+        "https://www.schemastore.org/plagiarize-me.json": "file:///home/hamad/dev/distmark/ansible/deploy.yml"
+    },
+    "ansible.python.interpreterPath": "/usr/bin/python3"
+}
