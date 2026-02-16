@@ -1,0 +1,19 @@
+---
+- name: Restart containers with new env vars
+  hosts: all
+  become: yes
+  tasks:
+    - name: Stop existing container
+      docker_container:
+        name: "{{ service }}"
+        state: absent
+      ignore_errors: yes
+
+    - name: Run Docker container with new env vars
+      docker_container:
+        name: "{{ service }}"
+        image: "{{ service }}"
+        state: started
+        restart_policy: always
+        ports: "{{ [service_port ~ ':5000'] if service_port is defined else [] }}"
+        env: "{{ container_env | default({}) }}"

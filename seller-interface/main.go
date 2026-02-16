@@ -2,17 +2,22 @@ package main
 
 import (
 	"bufio"
+	"flag"
 	"fmt"
 	"os"
 	"strings"
 )
 
-var serverURL = getEnv("SERVER_ADDRESS", "http://localhost:8000")
-
+var serverURL string
 var SessionId int = 0
 
 func main() {
+	// Define command-line flag
+	flag.StringVar(&serverURL, "server", getEnv("SERVER_ADDRESS", "http://localhost:8000"), "Server URL")
+	flag.Parse()
+
 	fmt.Println("Seller Frontend Client (HTTP)")
+	fmt.Printf("Connected to: %s\n", serverURL)
 
 	print_menu()
 	scanner := bufio.NewReader(os.Stdin)

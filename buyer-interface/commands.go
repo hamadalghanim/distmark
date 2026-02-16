@@ -36,6 +36,26 @@ func CreateAccount(reader *bufio.Reader) {
 
 	if result.Result == "success" {
 		fmt.Printf("Registered with buyer %d\n", result.BuyerID)
+
+		// Automatically login after successful registration
+		loginReq := LoginRequest{
+			Username: strings.TrimSpace(username),
+			Password: strings.TrimSpace(password),
+		}
+
+		loginResp, err := sendPostRequest("/account/login", loginReq)
+		if err != nil {
+			fmt.Println("Error logging in:", err)
+			return
+		}
+
+		var loginResult LoginResponse
+		json.Unmarshal([]byte(loginResp), &loginResult)
+
+		if loginResult.Result == "success" && loginResult.SessionID != 0 {
+			SessionId = loginResult.SessionID
+			fmt.Printf("Automatically logged in with Session ID: %d\n", SessionId)
+		}
 	} else {
 		fmt.Println(result.Message)
 	}
@@ -373,7 +393,7 @@ func GetSellerRating(reader *bufio.Reader) {
 		sign := ""
 		if result.Feedback > 0 {
 			sign = "+"
-		} else {
+		} else if result.Feedback < 0 {
 			sign = "-"
 		}
 		fmt.Printf("Seller rating: %s%d\n", sign, int(result.Feedback))
