@@ -2,7 +2,7 @@
 
 echo "Buyer Frontend Client"
 echo "1. Local (http://localhost:8001)"
-echo "2. GCP (http://34.72.178.240:80)"
+echo "2. GCP (http://34.29.137.149:80)"
 echo "3. Custom"
 read -p "Select environment (1, 2, or 3): " choice
 
@@ -11,7 +11,7 @@ case $choice in
         SERVER_URL="http://localhost:8001"
         ;;
     2)
-        SERVER_URL="http://34.72.178.240:80"
+        SERVER_URL="http://34.29.137.149:80"
         ;;
     3)
         read -p "Enter custom server URL: " SERVER_URL

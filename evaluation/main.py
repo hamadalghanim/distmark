@@ -298,7 +298,7 @@ def run_buyer_client(id, scenario):
 def main():
     global BUYER_BASE_URL, SELLER_BASE_URL
     BUYER_BASE_URL = select_environment(
-        "Buyer Frontend Client", "http://localhost:8001", "http://34.72.178.240:80"
+        "Buyer Frontend Client", "http://localhost:8001", "http://34.29.137.149:80"
     )
     SELLER_BASE_URL = select_environment(
         "Seller Frontend Client", "http://localhost:8000", "http://34.70.9.107:80"

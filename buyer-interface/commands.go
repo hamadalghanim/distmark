@@ -393,8 +393,6 @@ func GetSellerRating(reader *bufio.Reader) {
 		sign := ""
 		if result.Feedback > 0 {
 			sign = "+"
-		} else if result.Feedback < 0 {
-			sign = "-"
 		}
 		fmt.Printf("Seller rating: %s%d\n", sign, int(result.Feedback))
 	} else {
