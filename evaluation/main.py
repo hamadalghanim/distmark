@@ -2,12 +2,33 @@ import requests
 import threading
 import time
 import random
+from requests.adapters import HTTPAdapter
+from urllib3.util.retry import Retry
 
 number_of_clients_per_scenario = [1, 10, 100]
-# number_of_clients_per_scenario = [1]
 
 BUYER_BASE_URL = "http://localhost:8001"
 SELLER_BASE_URL = "http://localhost:8000"
+
+
+# Create session with connection pooling
+def create_session():
+    session = requests.Session()
+    retry = Retry(total=3, backoff_factor=0.1)
+    adapter = HTTPAdapter(pool_connections=10, pool_maxsize=20, max_retries=retry)
+    session.mount("http://", adapter)
+    session.mount("https://", adapter)
+    return session
+
+
+# Thread-local storage for sessions
+thread_local = threading.local()
+
+
+def get_session():
+    if not hasattr(thread_local, "session"):
+        thread_local.session = create_session()
+    return thread_local.session
 
 
 def select_client_counts():
@@ -50,52 +71,52 @@ def select_environment(service_name, local_url, gcp_url):
         return local_url
 
 
-BUYER_BASE_URL = select_environment(
-    "Buyer Frontend Client", "http://localhost:8001", "http://34.72.178.240:80"
-)
-
-# Select Seller Frontend
-SELLER_BASE_URL = select_environment(
-    "Seller Frontend Client", "http://localhost:8000", "http://34.70.9.107:80"
-)
-
-
 def perform_random_buyer_cmd(session_id):
+    session = get_session()
     cmds = [
-        lambda: requests.get(
-            f"{BUYER_BASE_URL}/items/2", params={"session_id": session_id}
+        lambda: session.get(
+            f"{BUYER_BASE_URL}/items/2", params={"session_id": session_id}, timeout=10
         ),
-        lambda: requests.get(
-            f"{BUYER_BASE_URL}/categories", params={"session_id": session_id}
+        lambda: session.get(
+            f"{BUYER_BASE_URL}/categories",
+            params={"session_id": session_id},
+            timeout=10,
         ),
-        lambda: requests.get(
+        lambda: session.get(
             f"{BUYER_BASE_URL}/items/search",
             params={"session_id": session_id, "category_id": "0", "keywords": "tech"},
+            timeout=10,
         ),
-        lambda: requests.post(
+        lambda: session.post(
             f"{BUYER_BASE_URL}/feedback",
             json={"session_id": session_id, "item_id": "2", "feedback": "1"},
+            timeout=10,
         ),
-        lambda: requests.get(
-            f"{BUYER_BASE_URL}/seller/1/rating", params={"session_id": session_id}
+        lambda: session.get(
+            f"{BUYER_BASE_URL}/seller/1/rating",
+            params={"session_id": session_id},
+            timeout=10,
         ),
-        lambda: requests.post(
-            f"{BUYER_BASE_URL}/cart/clear", json={"session_id": session_id}
+        lambda: session.post(
+            f"{BUYER_BASE_URL}/cart/clear", json={"session_id": session_id}, timeout=10
         ),
-        lambda: requests.post(
+        lambda: session.post(
             f"{BUYER_BASE_URL}/cart/items",
             json={"session_id": session_id, "item_id": "1", "quantity": "1"},
+            timeout=10,
         ),
-        lambda: requests.delete(
-            f"{BUYER_BASE_URL}/cart/items/1", json={"session_id": session_id}
+        lambda: session.delete(
+            f"{BUYER_BASE_URL}/cart/items/1",
+            json={"session_id": session_id},
+            timeout=10,
         ),
-        lambda: requests.post(
-            f"{BUYER_BASE_URL}/cart/save", json={"session_id": session_id}
+        lambda: session.post(
+            f"{BUYER_BASE_URL}/cart/save", json={"session_id": session_id}, timeout=10
         ),
-        lambda: requests.get(
-            f"{BUYER_BASE_URL}/cart", params={"session_id": session_id}
+        lambda: session.get(
+            f"{BUYER_BASE_URL}/cart", params={"session_id": session_id}, timeout=10
         ),
-        lambda: requests.post(
+        lambda: session.post(
             f"{BUYER_BASE_URL}/purchase",
             json={
                 "session_id": session_id,
@@ -103,9 +124,10 @@ def perform_random_buyer_cmd(session_id):
                 "expiration_date": "12/25",
                 "security_code": "123",
             },
+            timeout=10,
         ),
-        lambda: requests.get(
-            f"{BUYER_BASE_URL}/purchases", params={"session_id": session_id}
+        lambda: session.get(
+            f"{BUYER_BASE_URL}/purchases", params={"session_id": session_id}, timeout=10
         ),
     ]
 
@@ -113,18 +135,23 @@ def perform_random_buyer_cmd(session_id):
         cmd = random.choice(cmds)
         cmd()
     except Exception as e:
-        print(f"error? {e}")
+        print(f"Buyer error: {e}")
 
 
 def perform_random_seller_cmd(session_id, item_id):
+    session = get_session()
     cmds = [
-        lambda: requests.get(
-            f"{SELLER_BASE_URL}/categories", params={"session_id": session_id}
+        lambda: session.get(
+            f"{SELLER_BASE_URL}/categories",
+            params={"session_id": session_id},
+            timeout=10,
         ),
-        lambda: requests.get(
-            f"{SELLER_BASE_URL}/seller/rating", params={"session_id": session_id}
+        lambda: session.get(
+            f"{SELLER_BASE_URL}/seller/rating",
+            params={"session_id": session_id},
+            timeout=10,
         ),
-        lambda: requests.post(
+        lambda: session.post(
             f"{SELLER_BASE_URL}/items",
             json={
                 "session_id": session_id,
@@ -135,21 +162,24 @@ def perform_random_seller_cmd(session_id, item_id):
                 "price": "3.99",
                 "qty": "20",
             },
+            timeout=10,
         ),
-        lambda: requests.get(
-            f"{SELLER_BASE_URL}/items", params={"session_id": session_id}
+        lambda: session.get(
+            f"{SELLER_BASE_URL}/items", params={"session_id": session_id}, timeout=10
         ),
-        lambda: requests.put(
+        lambda: session.put(
             f"{SELLER_BASE_URL}/items/price",
             json={
                 "session_id": session_id,
                 "item_id": str(item_id),
                 "new_price": "4.99",
             },
+            timeout=10,
         ),
-        lambda: requests.put(
+        lambda: session.put(
             f"{SELLER_BASE_URL}/items/quantity",
             json={"session_id": session_id, "item_id": str(item_id), "new_qty": "900"},
+            timeout=10,
         ),
     ]
 
@@ -157,21 +187,24 @@ def perform_random_seller_cmd(session_id, item_id):
         cmd = random.choice(cmds)
         cmd()
     except Exception as e:
-        print(f"error? {e}")
+        print(f"Seller error: {e}")
 
 
-def run_seller_client(id):
-    id = str(id)
+def run_seller_client(id, scenario):
+    session = get_session()
+    unique_id = f"s{scenario}_u{id}"
 
     try:
-        requests.post(
+        session.post(
             f"{SELLER_BASE_URL}/account/register",
-            json={"name": "jeff", "username": f"username{id}", "password": "password"},
+            json={"name": "jeff", "username": unique_id, "password": "password"},
+            timeout=10,
         )
 
-        login_response = requests.post(
+        login_response = session.post(
             f"{SELLER_BASE_URL}/account/login",
-            json={"username": f"username{id}", "password": "password"},
+            json={"username": unique_id, "password": "password"},
+            timeout=10,
         )
 
         if login_response.status_code == 200:
@@ -179,8 +212,7 @@ def run_seller_client(id):
             session_id = login_data.get("session_id")
 
             if session_id:
-                # 3. Register initial item
-                register_item_response = requests.post(
+                register_item_response = session.post(
                     f"{SELLER_BASE_URL}/items",
                     json={
                         "session_id": session_id,
@@ -191,6 +223,7 @@ def run_seller_client(id):
                         "price": "3.99",
                         "qty": "20",
                     },
+                    timeout=10,
                 )
 
                 item_id = None
@@ -198,36 +231,42 @@ def run_seller_client(id):
                     item_data = register_item_response.json()
                     item_id = item_data.get("item_id", 1)
 
-                # perform 996 random operations (1 create + 1 register + 1login + 996 random + 1 logout = 1000)
-                for _ in range(996):
+                for i in range(996):
+                    if (i + 4) % 100 == 0:
+                        print(f"Seller {id} finished {i + 4}/1000")
                     perform_random_seller_cmd(session_id, item_id if item_id else 1)
 
-                requests.post(
-                    f"{SELLER_BASE_URL}/account/logout", json={"session_id": session_id}
+                session.post(
+                    f"{SELLER_BASE_URL}/account/logout",
+                    json={"session_id": session_id},
+                    timeout=10,
                 )
             else:
-                print(f"Seller {id}: Login failed - no session ID")
+                print(f"Seller {unique_id}: Login failed - no session ID")
         else:
             print(
-                f"Seller {id}: Login request failed with status {login_response.status_code}"
+                f"Seller {unique_id}: Login request failed with status {login_response.status_code}"
             )
 
     except Exception as e:
-        print(f"Seller {id} error: {e}")
+        print(f"Seller {unique_id} error: {e}")
 
 
-def run_buyer_client(id):
-    id = str(id)
+def run_buyer_client(id, scenario):
+    session = get_session()
+    unique_id = f"s{scenario}_u{id}"
 
     try:
-        requests.post(
+        session.post(
             f"{BUYER_BASE_URL}/account/register",
-            json={"name": "jeff", "username": f"username{id}", "password": "password"},
+            json={"name": "jeff", "username": unique_id, "password": "password"},
+            timeout=10,
         )
 
-        login_response = requests.post(
+        login_response = session.post(
             f"{BUYER_BASE_URL}/account/login",
-            json={"username": f"username{id}", "password": "password"},
+            json={"username": unique_id, "password": "password"},
+            timeout=10,
         )
 
         if login_response.status_code == 200:
@@ -235,25 +274,35 @@ def run_buyer_client(id):
             session_id = login_data.get("session_id")
 
             if session_id:
-                # perform 997 random operations (1 create + 1 login + 997 random + 1 logout = 1000)
-                for _ in range(997):
+                for i in range(997):
+                    if (i + 3) % 100 == 0:
+                        print(f"Client {id} finished {i + 3}/1000")
                     perform_random_buyer_cmd(session_id)
 
-                requests.post(
-                    f"{BUYER_BASE_URL}/account/logout", json={"session_id": session_id}
+                session.post(
+                    f"{BUYER_BASE_URL}/account/logout",
+                    json={"session_id": session_id},
+                    timeout=10,
                 )
             else:
-                print(f"Buyer {id}: Login failed - no session ID")
+                print(f"Buyer {unique_id}: Login failed - no session ID")
         else:
             print(
-                f"Buyer {id}: Login request failed with status {login_response.status_code}"
+                f"Buyer {unique_id}: Login request failed with status {login_response.status_code}"
             )
 
     except Exception as e:
-        print(f"Buyer {id} error: {e}")
+        print(f"Buyer {unique_id} error: {e}")
 
 
 def main():
+    global BUYER_BASE_URL, SELLER_BASE_URL
+    BUYER_BASE_URL = select_environment(
+        "Buyer Frontend Client", "http://localhost:8001", "http://34.72.178.240:80"
+    )
+    SELLER_BASE_URL = select_environment(
+        "Seller Frontend Client", "http://localhost:8000", "http://34.70.9.107:80"
+    )
 
     number_of_clients_per_scenario = select_client_counts()
     print("\nConfiguration:")
@@ -261,39 +310,35 @@ def main():
     print(f"Seller: {SELLER_BASE_URL}")
 
     for scenario in range(len(number_of_clients_per_scenario)):
-        print(f"Starting Scenario {scenario}...")
+        print(f"\nStarting Scenario {scenario}...")
         clients = number_of_clients_per_scenario[scenario]
-        seller_threads = []
-        buyer_threads = []
+        threads = []
         start_time = time.time()
 
         for i in range(clients):
             seller_thread = threading.Thread(
-                target=run_seller_client, args=((scenario + 1) * i,)
+                target=run_seller_client, args=(i, scenario)
             )
-            buyer_thread = threading.Thread(
-                target=run_buyer_client, args=((scenario + 1) * i,)
-            )
-            seller_threads.append(seller_thread)
-            buyer_threads.append(buyer_thread)
-            seller_thread.start()
-            buyer_thread.start()
+            buyer_thread = threading.Thread(target=run_buyer_client, args=(i, scenario))
+            threads.append(seller_thread)
+            threads.append(buyer_thread)
 
-        for st in seller_threads:
-            st.join()
-        for bt in buyer_threads:
-            bt.join()
+        for thread in threads:
+            thread.start()
+
+        for thread in threads:
+            thread.join()
 
         end_time = time.time()
         total_time = end_time - start_time
-        total_operations = clients * 1000 * 2  # 1000 operations per client
+        total_operations = clients * 1000 * 2
         avg_response_time = total_time / total_operations
         throughput = total_operations / total_time
 
         print(f"Total time taken: {total_time:.2f} seconds")
         print(f"Average response time: {avg_response_time:.4f} seconds")
         print(f"Server throughput: {throughput:.2f} operations/second")
-        print(f"Scenario {scenario} completed.\n")
+        print(f"Scenario {scenario} completed.")
 
 
 if __name__ == "__main__":

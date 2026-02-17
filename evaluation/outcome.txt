@@ -1,3 +1,5 @@
+# LOCAL
+
 Starting Scenario 0...
 Total time taken: 9.79 seconds
 Average response time: 0.0049 seconds
@@ -14,4 +16,22 @@ Starting Scenario 2...
 Total time taken: 405.70 seconds
 Average response time: 0.0020 seconds
 Server throughput: 492.97 operations/second
+Scenario 2 completed.
+
+
+# GOOGLE CLOUD SMALL MACHINES (2 vCPUs, 1 GB Memory)
+
+Total time taken: 72.47 seconds
+Average response time: 0.0362 seconds
+Server throughput: 27.60 operations/second
+Scenario 0 completed.
+
+Total time taken: 381.29 seconds
+Average response time: 0.0191 seconds
+Server throughput: 52.45 operations/second
+Scenario 1 completed.
+
+Total time taken: 5860.79 seconds
+Average response time: 0.0293 seconds
+Server throughput: 34.13 operations/second
 Scenario 2 completed.
