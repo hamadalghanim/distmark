@@ -1,0 +1,154 @@
+version: "3.9"
+
+# ── Shared broadcast config (no DB_HOST — each replica has its own) ───────────
+x-replica-env: &replica-env
+  N_MEMBERS: "3"
+  PEER_ADDRS: "replica0:6000,replica1:6001,replica2:6002"
+  DB_USER: "user"
+  DB_PASS: "pass"
+  DB_PORT: "5432"
+  DB_NAME: "products"
+
+x-postgres-env: &postgres-env
+  POSTGRES_USER: "user"
+  POSTGRES_PASSWORD: "pass"
+  POSTGRES_DB: "products"
+
+x-postgres-healthcheck: &postgres-healthcheck
+  test: ["CMD-SHELL", "pg_isready -U user -d products"]
+  interval: 5s
+  timeout: 3s
+  retries: 10
+
+x-replica-healthcheck: &replica-healthcheck
+  test: ["CMD", "python", "-c",
+         "import socket; s = socket.create_connection(('localhost', 5000), timeout=2); s.close()"]
+  interval: 5s
+  timeout: 3s
+  retries: 10
+ 
+
+services:
+
+  # ── Postgres 0 ───────────────────────────────────────────────────────────────
+  postgres0:
+    image: postgres:16-alpine
+    container_name: postgres0
+    environment: *postgres-env
+    networks:
+      - broadcast_net
+    volumes:
+      - pgdata0:/var/lib/postgresql/data
+    healthcheck: *postgres-healthcheck
+
+  # ── Replica 0 ────────────────────────────────────────────────────────────────
+  replica0:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: replica0
+    environment:
+      <<: *replica-env
+      MEMBER_ID: "0"
+      DB_HOST: "postgres0"
+    ports:
+      - "5000:5000"
+    networks:
+      broadcast_net:
+        aliases: [replica0]
+    depends_on:
+      postgres0:
+        condition: service_healthy
+    healthcheck: *replica-healthcheck
+
+  # ── Postgres 1 ───────────────────────────────────────────────────────────────
+  postgres1:
+    image: postgres:16-alpine
+    container_name: postgres1
+    environment: *postgres-env
+    networks:
+      - broadcast_net
+    volumes:
+      - pgdata1:/var/lib/postgresql/data
+    healthcheck: *postgres-healthcheck
+
+  # ── Replica 1 ────────────────────────────────────────────────────────────────
+  replica1:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: replica1
+    environment:
+      <<: *replica-env
+      MEMBER_ID: "1"
+      DB_HOST: "postgres1"
+    ports:
+      - "5001:5000"
+    networks:
+      broadcast_net:
+        aliases: [replica1]
+    depends_on:
+      postgres1:
+        condition: service_healthy
+    healthcheck: *replica-healthcheck
+
+  # ── Postgres 2 ───────────────────────────────────────────────────────────────
+  postgres2:
+    image: postgres:16-alpine
+    container_name: postgres2
+    environment: *postgres-env
+    networks:
+      - broadcast_net
+    volumes:
+      - pgdata2:/var/lib/postgresql/data
+    healthcheck: *postgres-healthcheck
+
+  # ── Replica 2 ────────────────────────────────────────────────────────────────
+  replica2:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: replica2
+    environment:
+      <<: *replica-env
+      MEMBER_ID: "2"
+      DB_HOST: "postgres2"
+    ports:
+      - "5002:5000"
+    networks:
+      broadcast_net:
+        aliases: [replica2]
+    depends_on:
+      postgres2:
+        condition: service_healthy
+    healthcheck: *replica-healthcheck
+
+  # ── Integration test runner ───────────────────────────────────────────────────
+  test:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: test_runner
+    environment:
+      REPLICA0_ADDR: "replica0:5000"
+      REPLICA1_ADDR: "replica1:5000"
+      REPLICA2_ADDR: "replica2:5000"
+    networks:
+      - broadcast_net
+    depends_on:
+      replica0:
+        condition: service_healthy
+      replica1:
+        condition: service_healthy
+      replica2:
+        condition: service_healthy
+    command: ["python", "-m", "pytest", "tests/test_broadcast.py", "-v", "--tb=short"]
+
+volumes:
+  pgdata0:
+  pgdata1:
+  pgdata2:
+
+networks:
+  broadcast_net:
+    driver: bridge
