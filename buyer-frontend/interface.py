@@ -7,22 +7,21 @@ from zeep import Client
 import os
 
 # gRPC setup
-CUSTOMERS_GRPC_HOST = os.getenv("CUSTOMERS_DB_RPC_HOST", "customers-db-rpc")
-CUSTOMERS_GRPC_PORT = os.getenv("CUSTOMERS_DB_RPC_PORT", "5000")
-CUSTOMERS_GRPC_ADDRESS = f"{CUSTOMERS_GRPC_HOST}:{CUSTOMERS_GRPC_PORT}"
-
-PRODUCTS_RPC_ADDRS = os.getenv(
+CUSTOMERS_GRPC_ADDRESSES = os.getenv(
+    "CUSTOMERS_RPC_ADDRS",
+    "customers-node0:5000,customers-node1:5000,customers-node2:5000,customers-node3:5000,customers-node4:5000"
+)
+PRODUCTS_GRPC_ADDRESSES = os.getenv(
     "PRODUCTS_RPC_ADDRS",
-    "products-node0:5000,products-node1:5000,products-node2:5000,products-node3:5000,products-node4:5000",
+    "products-node0:5000,products-node1:5000,products-node2:5000,products-node3:5000,products-node4:5000"
 )
 
-
-_customers_channel = grpc.insecure_channel(CUSTOMERS_GRPC_ADDRESS)
+_customers_channel = grpc.insecure_channel(f"ipv4:///{CUSTOMERS_GRPC_ADDRESSES}")
 _customers_stub = customers_pb2_grpc.CustomersServiceStub(_customers_channel)
 
-# round-robin across all nodes
 _products_channel = grpc.insecure_channel(
-    "ipv4:///" + PRODUCTS_RPC_ADDRS, options=[("grpc.lb_policy_name", "round_robin")]
+    f"ipv4:///{PRODUCTS_GRPC_ADDRESSES}",
+    options=[("grpc.lb_policy_name", "round_robin")]
 )
 _products_stub = products_pb2_grpc.SellerServiceStub(_products_channel)
 
