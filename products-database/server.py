@@ -1,4 +1,13 @@
+"""
+server.py — Products/Seller gRPC server with Raft replication
+
+IDs for new rows (seller_id, session_id, item_id) are generated HERE, before
+the Raft call, so that every replica inserts the same value.  This avoids the
+per-node postgres auto-increment divergence problem.
+"""
+
 import os
+import secrets
 import logging
 from concurrent import futures
 
@@ -9,57 +18,84 @@ from proto import products_pb2_grpc
 from db import BaseProducts, Category, Item, Seller
 from sqlalchemy.orm import Session
 from utils import products_engine, getAndValidateSession
-from sequencer.broadcast import (
-    BroadcastMixin,
-    setup_member,
-    OP_CREATE_ACCOUNT,
-    OP_LOGIN,
-    OP_LOGOUT,
-    OP_REGISTER_ITEM,
-    OP_CHANGE_PRICE,
-    OP_UPDATE_UNITS,
-    OP_PROVIDE_FEEDBACK,
-    OP_MAKE_PURCHASE,
-)
+from products_raft import RaftMixin, setup_raft
+
+
+def _new_id() -> int:
+    """Generate a random positive 31-bit integer safe for use as a postgres int PK."""
+    return secrets.randbelow(2**31 - 1) + 1
 
 
 def _load_config():
     member_id = int(os.environ["MEMBER_ID"])
-    n = int(os.environ["N_MEMBERS"])
-    peers = []
-    for p in os.environ["PEER_ADDRS"].split(","):
-        host, port = p.strip().rsplit(":", 1)
-        peers.append((host, int(port)))
-    assert len(peers) == n
-    return member_id, n, peers
+    raft_addrs = [p.strip() for p in os.environ["RAFT_ADDRS"].split(",")]
+    return member_id, raft_addrs
 
 
-class SellerAPI(BroadcastMixin, products_pb2_grpc.SellerService):
+class SellerAPI(RaftMixin, products_pb2_grpc.SellerServiceServicer):
+    # ── Writes — replicated via Raft ─────────────────────────────────────────
+
     def CreateAccount(self, request, context):
-        return self._broadcast(OP_CREATE_ACCOUNT, request)
+        return self._raft.create_account(
+            _new_id(),
+            request.name,
+            request.username,
+            request.password,
+            sync=True,
+        )
 
     def Login(self, request, context):
-        return self._broadcast(OP_LOGIN, request)
+        return self._raft.login(
+            _new_id(),
+            request.username,
+            request.password,
+            sync=True,
+        )
 
     def Logout(self, request, context):
-        return self._broadcast(OP_LOGOUT, request)
+        return self._raft.logout(request.session_id, sync=True)
 
     def RegisterItemForSale(self, request, context):
-        return self._broadcast(OP_REGISTER_ITEM, request)
+        return self._raft.register_item(
+            _new_id(),
+            request.session_id,
+            request.item_name,
+            request.category_id,
+            request.keywords,
+            request.condition,
+            request.price,
+            request.quantity,
+            sync=True,
+        )
 
     def ChangeItemPrice(self, request, context):
-        return self._broadcast(OP_CHANGE_PRICE, request)
+        return self._raft.change_price(
+            request.session_id,
+            request.item_id,
+            request.new_price,
+            sync=True,
+        )
 
     def UpdateUnitsForSale(self, request, context):
-        return self._broadcast(OP_UPDATE_UNITS, request)
+        return self._raft.update_units(
+            request.session_id,
+            request.item_id,
+            request.new_quantity,
+            sync=True,
+        )
 
     def ProvideFeedback(self, request, context):
-        return self._broadcast(OP_PROVIDE_FEEDBACK, request)
+        return self._raft.provide_feedback(
+            request.item_id,
+            request.feedback,
+            sync=True,
+        )
 
     def MakePurchase(self, request, context):
-        return self._broadcast(OP_MAKE_PURCHASE, request)
+        items = [(i.item_id, i.quantity) for i in request.items]
+        return self._raft.make_purchase(items, sync=True)
 
-    # ── Reads ─────────────────────────────────────────────────────────────────
+    # ── Reads — local DB query ────────────────────────────────────────────────
 
     def GetSellerRating(self, request, context):
         with Session(products_engine) as s:
@@ -131,7 +167,6 @@ class SellerAPI(BroadcastMixin, products_pb2_grpc.SellerService):
                 query = query.filter_by(category_id=request.category_id)
             for kw in request.keywords:
                 query = query.filter(Item.keywords.ilike(f"%{kw.strip()}%"))
-            items = query.all()
             return products_pb2.ItemListResponse(
                 success=True,
                 items=[
@@ -145,7 +180,7 @@ class SellerAPI(BroadcastMixin, products_pb2_grpc.SellerService):
                         quantity=i.quantity,
                         seller_id=i.seller_id,
                     )
-                    for i in items
+                    for i in query.all()
                 ],
             )
 
@@ -185,23 +220,25 @@ def seed(engine):
 
 
 def serve():
-    member_id, n, peer_addrs = _load_config()
+    member_id, raft_addrs = _load_config()
     BaseProducts.metadata.create_all(products_engine)
     seed(products_engine)
 
     api = SellerAPI()
-    member = setup_member(member_id, n, peer_addrs, api)
+    raft = setup_raft(member_id, raft_addrs, api)
 
     grpc_port = "5000"
     server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))
     products_pb2_grpc.add_SellerServiceServicer_to_server(api, server)
     server.add_insecure_port("[::]:" + grpc_port)
     server.start()
-    print(f"Replica {member_id + 1}/{n} gRPC :{grpc_port}  UDP {peer_addrs[member_id]}")
+    print(
+        f"Products node {member_id}/{len(raft_addrs)} gRPC :{grpc_port}  Raft {raft_addrs[member_id]}"
+    )
     try:
         server.wait_for_termination()
     finally:
-        member.stop()
+        raft.destroy()
 
 
 if __name__ == "__main__":
