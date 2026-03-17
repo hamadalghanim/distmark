@@ -11,14 +11,19 @@ CUSTOMERS_GRPC_HOST = os.getenv("CUSTOMERS_DB_RPC_HOST", "customers-db-rpc")
 CUSTOMERS_GRPC_PORT = os.getenv("CUSTOMERS_DB_RPC_PORT", "5000")
 CUSTOMERS_GRPC_ADDRESS = f"{CUSTOMERS_GRPC_HOST}:{CUSTOMERS_GRPC_PORT}"
 
-PRODUCTS_GRPC_HOST = os.getenv("PRODUCTS_DB_RPC_HOST", "products-db-rpc")
-PRODUCTS_GRPC_PORT = os.getenv("PRODUCTS_DB_RPC_PORT", "5000")
-PRODUCTS_GRPC_ADDRESS = f"{PRODUCTS_GRPC_HOST}:{PRODUCTS_GRPC_PORT}"
+PRODUCTS_RPC_ADDRS = os.getenv(
+    "PRODUCTS_RPC_ADDRS",
+    "products-node0:5000,products-node1:5000,products-node2:5000,products-node3:5000,products-node4:5000",
+)
+
 
 _customers_channel = grpc.insecure_channel(CUSTOMERS_GRPC_ADDRESS)
 _customers_stub = customers_pb2_grpc.CustomersServiceStub(_customers_channel)
 
-_products_channel = grpc.insecure_channel(PRODUCTS_GRPC_ADDRESS)
+# round-robin across all nodes
+_products_channel = grpc.insecure_channel(
+    "ipv4:///" + PRODUCTS_RPC_ADDRS, options=[("grpc.lb_policy_name", "round_robin")]
+)
 _products_stub = products_pb2_grpc.SellerServiceStub(_products_channel)
 
 # soap setup

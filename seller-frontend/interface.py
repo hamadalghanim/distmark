@@ -7,12 +7,17 @@ import socket
 from proto import products_pb2
 from proto import products_pb2_grpc
 
-GRPC_HOST = os.getenv("PRODUCTS_DB_RPC_HOST", "products-db-rpc")
-GRPC_PORT = os.getenv("PRODUCTS_DB_RPC_PORT", "5000")
-GRPC_ADDRESS = f"{GRPC_HOST}:{GRPC_PORT}"
+PRODUCTS_RPC_ADDRS = os.getenv(
+    "PRODUCTS_RPC_ADDRS",
+    "products-node0:5000,products-node1:5000,products-node2:5000,products-node3:5000,products-node4:5000",
+)
 
-_channel = grpc.insecure_channel(GRPC_ADDRESS)
-_stub = products_pb2_grpc.SellerServiceStub(_channel)
+
+# round-robin across all nodes
+_products_channel = grpc.insecure_channel(
+    "ipv4:///" + PRODUCTS_RPC_ADDRS, options=[("grpc.lb_policy_name", "round_robin")]
+)
+_stub = products_pb2_grpc.SellerServiceStub(_products_channel)
 
 
 def _item_to_dict(item):
