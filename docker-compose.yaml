@@ -101,7 +101,10 @@ services:
       PRODUCTS_RPC_ADDRS: "products-node0:5000"
       CUSTOMERS_RPC_ADDRS: "customers-node0:5000"
 
-  # ── Products nodes ────────────────────────────────────────────────────────────
+  # - payment service
+  payments-api:
+    build: payments-api
+  # - Products nodes 
 
   products-pg0:
     image: postgres:16-alpine
@@ -213,7 +216,7 @@ services:
         condition: service_healthy
     healthcheck: *products-node-hc
 
-  # ── Customers nodes ───────────────────────────────────────────────────────────
+  # - Customers nodes
 
   customers-pg0:
     image: postgres:16-alpine

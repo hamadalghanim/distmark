@@ -1,12 +1,8 @@
 from typing import List
-from sqlalchemy import ForeignKey
-from sqlalchemy import String, DECIMAL, INT, DateTime
-from sqlalchemy.orm import DeclarativeBase
-from sqlalchemy.orm import Mapped
-from sqlalchemy.orm import mapped_column
-from sqlalchemy.orm import relationship
-from enum import Enum
+from sqlalchemy import ForeignKey, String, DECIMAL, INT, DateTime, Index
 from sqlalchemy import Enum as SQLEnum
+from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
+from enum import Enum
 from datetime import datetime, timezone
 
 
@@ -21,19 +17,27 @@ class Condition(Enum):
 
 class Item(BaseProducts):
     __tablename__ = "items"
+    __table_args__ = (
+        Index("ix_item_category_id", "category_id"),
+        Index("ix_item_quantity", "quantity"),
+        Index(
+            "ix_item_category_quantity", "category_id", "quantity"
+        ),  # composite for filtered searches
+        Index(
+            "ix_item_keywords_trgm",
+            "keywords",
+            postgresql_using="gin",
+            postgresql_ops={"keywords": "gin_trgm_ops"},
+        ),
+    )
+
     id: Mapped[int] = mapped_column(primary_key=True)
     name: Mapped[str] = mapped_column(String(32))
     category_id: Mapped[int] = mapped_column(ForeignKey("categories.id"))
     category: Mapped["Category"] = relationship(back_populates="items")
-    keywords: Mapped[str] = mapped_column(
-        String(45)
-    )  # 8 characters per word, 5 words + commas
+    keywords: Mapped[str] = mapped_column(String(45))
     condition: Mapped[Condition] = mapped_column(
-        SQLEnum(
-            Condition,
-            name="condition_enum",
-            validate_strings=True,
-        ),
+        SQLEnum(Condition, name="condition_enum", validate_strings=True),
         default=Condition.NEW,
         nullable=False,
     )

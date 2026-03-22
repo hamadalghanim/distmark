@@ -10,6 +10,7 @@ import os
 import secrets
 import logging
 from concurrent import futures
+from sqlalchemy import text
 
 import grpc
 from proto import products_pb2
@@ -161,26 +162,47 @@ class SellerAPI(RaftMixin, products_pb2_grpc.SellerServiceServicer):
             )
 
     def SearchItemsForSale(self, request, context):
+
         with Session(products_engine) as s:
-            query = s.query(Item)
+            query = s.query(Item).filter(Item.quantity > 0)
+
             if request.category_id != 0:
-                query = query.filter_by(category_id=request.category_id)
+                query = query.filter(Item.category_id == request.category_id)
+
             for kw in request.keywords:
-                query = query.filter(Item.keywords.ilike(f"%{kw.strip()}%"))
+                kw = kw.strip()
+                if kw:
+                    query = query.filter(Item.keywords.ilike(f"%{kw}%"))
+
+            rows = (
+                query.with_entities(
+                    Item.id,
+                    Item.name,
+                    Item.category_id,
+                    Item.keywords,
+                    Item.condition,
+                    Item.sale_price,
+                    Item.quantity,
+                    Item.seller_id,
+                )
+                .limit(50)
+                .all()
+            )
+
             return products_pb2.ItemListResponse(
                 success=True,
                 items=[
                     products_pb2.Item(
-                        id=i.id,
-                        name=i.name,
-                        category_id=i.category_id,
-                        keywords=i.keywords,
-                        condition=i.condition.name,
-                        sale_price=i.sale_price,
-                        quantity=i.quantity,
-                        seller_id=i.seller_id,
+                        id=r.id,
+                        name=r.name,
+                        category_id=r.category_id,
+                        keywords=r.keywords,
+                        condition=r.condition.name,
+                        sale_price=r.sale_price,
+                        quantity=r.quantity,
+                        seller_id=r.seller_id,
                     )
-                    for i in query.all()
+                    for r in rows
                 ],
             )
 
@@ -217,6 +239,8 @@ def seed(engine):
                 ]
             )
             s.commit()
+        s.execute(text("CREATE EXTENSION IF NOT EXISTS pg_trgm;"))
+        s.commit()
 
 
 def serve():
