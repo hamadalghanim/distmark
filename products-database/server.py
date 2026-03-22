@@ -123,20 +123,35 @@ class SellerAPI(RaftMixin, products_pb2_grpc.SellerServiceServicer):
                 return products_pb2.ItemListResponse(
                     success=False, message=result.error
                 )
-            items = s.query(Item).filter_by(seller_id=result.session.seller_id).all()
+
+            rows = (
+                s.query(Item)
+                .filter(Item.seller_id == result.session.seller_id)
+                .with_entities(
+                    Item.id,
+                    Item.name,
+                    Item.quantity,
+                    Item.sale_price,
+                    Item.category_id,
+                    Item.condition,
+                    Item.keywords,
+                )
+                .all()
+            )
+
             return products_pb2.ItemListResponse(
                 success=True,
                 items=[
                     products_pb2.Item(
-                        id=i.id,
-                        name=i.name,
-                        quantity=i.quantity,
-                        sale_price=i.sale_price,
-                        category_id=i.category_id,
-                        condition=i.condition.name,
-                        keywords=i.keywords,
+                        id=r.id,
+                        name=r.name,
+                        quantity=r.quantity,
+                        sale_price=r.sale_price,
+                        category_id=r.category_id,
+                        condition=r.condition.name,
+                        keywords=r.keywords,
                     )
-                    for i in items
+                    for r in rows
                 ],
             )
 
@@ -230,6 +245,12 @@ class SellerAPI(RaftMixin, products_pb2_grpc.SellerServiceServicer):
 
 def seed(engine):
     with Session(engine) as s:
+        s.execute(text("CREATE EXTENSION IF NOT EXISTS pg_trgm;"))
+        s.commit()
+
+    BaseProducts.metadata.create_all(engine)
+
+    with Session(engine) as s:
         if s.query(Category).count() == 0:
             s.add_all(
                 [
@@ -239,20 +260,20 @@ def seed(engine):
                 ]
             )
             s.commit()
-        s.execute(text("CREATE EXTENSION IF NOT EXISTS pg_trgm;"))
-        s.commit()
 
 
 def serve():
     member_id, raft_addrs = _load_config()
-    BaseProducts.metadata.create_all(products_engine)
     seed(products_engine)
 
     api = SellerAPI()
     raft = setup_raft(member_id, raft_addrs, api)
 
     grpc_port = "5000"
-    server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))
+
+    server = grpc.server(
+        futures.ThreadPoolExecutor(max_workers=4), options=[("grpc.so_reuseport", 0)]
+    )
     products_pb2_grpc.add_SellerServiceServicer_to_server(api, server)
     server.add_insecure_port("[::]:" + grpc_port)
     server.start()

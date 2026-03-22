@@ -373,6 +373,7 @@ class ProductsRaft(SyncObj):
         from proto import products_pb2
         from db import Item
         from sqlalchemy.orm import Session
+        from sqlalchemy.orm import joinedload
         from utils import products_engine
 
         t0 = time.monotonic()
@@ -381,7 +382,12 @@ class ProductsRaft(SyncObj):
         )
 
         with Session(products_engine) as s:
-            item = s.query(Item).filter_by(id=item_id).first()
+            item = (
+                s.query(Item)
+                .options(joinedload(Item.seller))
+                .filter_by(id=item_id)
+                .first()
+            )
             if item is None:
                 logger.warning(
                     "[raft] provide_feedback FAILED — item_id=%s not found", item_id
@@ -417,6 +423,8 @@ class ProductsRaft(SyncObj):
         from proto import products_pb2
         from db import Item
         from sqlalchemy.orm import Session
+        from sqlalchemy.orm import joinedload
+
         from utils import products_engine
 
         t0 = time.monotonic()
@@ -425,7 +433,12 @@ class ProductsRaft(SyncObj):
         with Session(products_engine) as s:
             try:
                 for item_id, qty in items:
-                    item = s.query(Item).filter_by(id=item_id).first()
+                    item = (
+                        s.query(Item)
+                        .options(joinedload(Item.seller))
+                        .filter_by(id=item_id)
+                        .first()
+                    )
                     if item is None:
                         s.rollback()
                         logger.warning(
@@ -483,10 +496,10 @@ def setup_raft(member_id: int, peer_addrs: list, api) -> ProductsRaft:
     partners = [a for i, a in enumerate(peer_addrs) if i != member_id]
     cfg = SyncObjConf(
         autoTick=True,
-        appendEntriesRetryTime=0.5,
-        raftMinTimeout=1.5,
-        raftMaxTimeout=3.0,
-        connectionRetryTime=5.0,
+        appendEntriesRetryTime=0.2,
+        raftMinTimeout=0.5,
+        raftMaxTimeout=1.0,
+        connectionRetryTime=2.0,
         logCompactionMinTime=300,
         fullDump=None,
     )
