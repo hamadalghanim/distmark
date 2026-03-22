@@ -18,11 +18,8 @@ from sequencer.messages import (
     BaseMessage,
     RequestMessage,
     SequenceMessage,
-    RetransmitMessage,
-    make_retransmit_req,
-    make_retransmit_seq,
-    RETRANSMIT_REQ,
-    RETRANSMIT_SEQ,
+    RetransmitRequestMessage,
+    RetransmitSequenceMessage,
 )
 
 logger = logging.getLogger(__name__)
@@ -117,8 +114,10 @@ class Member:
                 self._on_request(msg)
             elif isinstance(msg, SequenceMessage):
                 self._on_sequence(msg)
-            elif isinstance(msg, RetransmitMessage):
-                self._on_retransmit(msg)
+            elif isinstance(msg, RetransmitRequestMessage):
+                self._on_retransmit_req(msg)
+            elif isinstance(msg, RetransmitSequenceMessage):
+                self._on_retransmit_seq(msg)
 
     def _on_request(self, msg: RequestMessage):
         rid = msg.request_id()
@@ -134,34 +133,32 @@ class Member:
             if k not in self._assignments:
                 self._assignments[k] = rid
                 logger.info("Member %d stored Sequence k=%d rid=%s", self.id, k, rid)
-            # All nodes advance _next_assign so they know who sequences k+1
             if k >= self._next_assign:
                 self._next_assign = k + 1
 
-    def _on_retransmit(self, msg: RetransmitMessage):
-        if msg.retransmit_type == RETRANSMIT_REQ:
-            rid = (msg.req_sender_id, msg.req_local_seq)
-            with self._lock:
-                req = self._requests.get(rid)
-            if req is not None and req.sender_id == self.id:
-                try:
-                    req.send(self._sock, self.peers[msg.requester_id])
-                except OSError:
-                    pass
+    def _on_retransmit_req(self, msg: RetransmitRequestMessage):
+        rid = (msg.req_sender_id, msg.req_local_seq)
+        with self._lock:
+            req = self._requests.get(rid)
+        if req is not None and req.sender_id == self.id:
+            try:
+                req.send(self._sock, self.peers[msg.requester_id])
+            except OSError:
+                pass
 
-        elif msg.retransmit_type == RETRANSMIT_SEQ:
-            k = msg.global_seq_num
-            if k % self.n != self.id:
-                return
-            with self._lock:
-                rid = self._assignments.get(k)
-            if rid is not None:
-                try:
-                    self._make_seq_msg(k, rid).send(
-                        self._sock, self.peers[msg.requester_id]
-                    )
-                except OSError:
-                    pass
+    def _on_retransmit_seq(self, msg: RetransmitSequenceMessage):
+        k = msg.global_seq_num
+        if k % self.n != self.id:
+            return
+        with self._lock:
+            rid = self._assignments.get(k)
+        if rid is not None:
+            try:
+                self._make_seq_msg(k, rid).send(
+                    self._sock, self.peers[msg.requester_id]
+                )
+            except OSError:
+                pass
 
     # ── Sequencer loop ─────────────────────────────────────────────────────────
 
@@ -183,7 +180,6 @@ class Member:
             if k % self.n != self.id:
                 return None
 
-            # Precondition: have all prior SEQ assignments and their Request bodies
             for i in range(k):
                 if i not in self._assignments:
                     self._rtx_seq(i)
@@ -193,7 +189,6 @@ class Member:
                     self._rtx_req(prior_rid)
                     return None
 
-            # Pick any unassigned request whose prior local seqs are all assigned
             assigned = set(self._assignments.values())
             chosen = None
             for rid, req in self._requests.items():
@@ -235,16 +230,11 @@ class Member:
             self._delivered.add(rid)
             self._next_deliver = s + 1
 
-        # --- outside the lock from here ---
         logger.info("Member %d delivering global_seq=%d rid=%s", self.id, s, rid)
 
-        # Unblock the gRPC thread FIRST so it can return a response to the client.
-        # The gRPC thread will do its own DB write after waking.
         if event is not None:
             event.set()
 
-        # Then call the callback so non-submitting replicas also apply the write.
-        # This runs on the deliver thread and must not block indefinitely.
         try:
             self._cb(s, rid, req.payload)
         except Exception:
@@ -272,7 +262,7 @@ class Member:
         self._rtx_times[key] = now
         try:
             self._sock.sendto(
-                make_retransmit_req(self.id, rid[0], rid[1]).to_bytes(),
+                RetransmitRequestMessage(self.id, rid[0], rid[1]).to_bytes(),
                 self.peers[rid[0]],
             )
         except OSError:
@@ -287,7 +277,8 @@ class Member:
         self._rtx_times[key] = now
         try:
             self._sock.sendto(
-                make_retransmit_seq(self.id, k).to_bytes(), self.peers[k % self.n]
+                RetransmitSequenceMessage(self.id, k).to_bytes(),
+                self.peers[k % self.n],
             )
         except OSError:
             pass
