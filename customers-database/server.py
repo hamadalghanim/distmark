@@ -21,7 +21,7 @@ import grpc
 from proto import customers_pb2
 from proto import customers_pb2_grpc
 
-from db import BaseCustomers, Buyer, BuyerSession, Cart, CartItem, ItemsBought
+from db import BaseCustomers, Cart, CartItem, ItemsBought
 from sqlalchemy.orm import Session
 from utils import customers_engine, getAndValidateSession
 

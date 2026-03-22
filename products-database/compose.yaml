@@ -1,5 +1,3 @@
-version: "3.9"
-
 # Test compose for products-database (Raft) in isolation.
 # Run from the products-database/ directory:
 #   docker compose up --build --abort-on-container-exit --exit-code-from test

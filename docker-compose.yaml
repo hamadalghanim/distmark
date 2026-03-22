@@ -70,7 +70,7 @@ services:
       products-node4:
         condition: service_healthy
     environment:
-      PRODUCTS_RPC_ADDRS: "products-node0:5000,products-node1:5000,products-node2:5000,products-node3:5000,products-node4:5000"
+      PRODUCTS_RPC_ADDRS: "products-node0:5000"
 
   buyer-frontend:
     build: buyer-frontend
@@ -98,8 +98,8 @@ services:
       customers-node4:
         condition: service_healthy
     environment:
-      PRODUCTS_RPC_ADDRS: "products-node0:5000,products-node1:5000,products-node2:5000,products-node3:5000,products-node4:5000"
-      CUSTOMERS_RPC_ADDRS: "customers-node0:5000,customers-node1:5000,customers-node2:5000,customers-node3:5000,customers-node4:5000"
+      PRODUCTS_RPC_ADDRS: "products-node0:5000"
+      CUSTOMERS_RPC_ADDRS: "customers-node0:5000"
 
   # ── Products nodes ────────────────────────────────────────────────────────────
 

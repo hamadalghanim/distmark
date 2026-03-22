@@ -1,5 +1,3 @@
-version: "3.9"
-
 # ── Shared broadcast config (no DB_HOST — each replica has its own) ───────────
 x-replica-env: &replica-env
   N_MEMBERS: "5"

@@ -8,12 +8,11 @@ from proto import products_pb2_grpc
 
 PRODUCTS_GRPC_ADDRESSES = os.getenv(
     "PRODUCTS_RPC_ADDRS",
-    "products-node0:5000,products-node1:5000,products-node2:5000,products-node3:5000,products-node4:5000",
+    "products-node0:5000",
 )
 
-
 _products_channel = grpc.insecure_channel(
-    f"ipv4:///{PRODUCTS_GRPC_ADDRESSES}",
+    PRODUCTS_GRPC_ADDRESSES,
     options=[("grpc.lb_policy_name", "round_robin")],
 )
 _stub = products_pb2_grpc.SellerServiceStub(_products_channel)
