@@ -14,62 +14,9 @@ All integers are big-endian unsigned (! prefix, I/H/B = 4/2/1 bytes).
 import socket
 import struct
 from dataclasses import dataclass
-from typing import ClassVar
 
 
-# ── Registry ───────────────────────────────────────────────────────────────────
-
-_REGISTRY: dict[int, type["BaseMessage"]] = {}
-
-
-class BaseMessage:
-    MSG_TYPE: ClassVar[int]
-    _STRUCT: ClassVar[struct.Struct]
-
-    def __init_subclass__(cls, **kwargs):
-        super().__init_subclass__(**kwargs)
-        if hasattr(cls, "MSG_TYPE"):
-            _REGISTRY[cls.MSG_TYPE] = cls
-
-    # ── Serialisation ────────────────────────────────────────────────────────
-
-    def _fields(self) -> tuple:
-        """Return field values in _STRUCT order. Override when non-trivial."""
-        raise NotImplementedError
-
-    def _pack(self) -> bytes:
-        return self._STRUCT.pack(*self._fields())
-
-    def to_bytes(self) -> bytes:
-        return struct.pack("!B", self.MSG_TYPE) + self._pack()
-
-    @classmethod
-    def _unpack(cls, data: bytes) -> "BaseMessage":
-        return cls(*cls._STRUCT.unpack_from(data))
-
-    @staticmethod
-    def from_bytes(data: bytes) -> "BaseMessage":
-        if not data:
-            raise ValueError("Empty datagram")
-        msg_type = data[0]
-        cls = _REGISTRY.get(msg_type)
-        if cls is None:
-            raise ValueError(f"Unknown message type: {msg_type:#04x}")
-        return cls._unpack(data[1:])
-
-    # ── Transport ────────────────────────────────────────────────────────────
-
-    def send(self, sock: socket.socket, addr: tuple[str, int]) -> None:
-        sock.sendto(self.to_bytes(), addr)
-
-    def broadcast(self, sock: socket.socket, peers: list[tuple[str, int]]) -> None:
-        encoded = self.to_bytes()
-        for addr in peers:
-            sock.sendto(encoded, addr)
-
-
-# ── RequestMessage ─────────────────────────────────────────────────────────────
-#
+# request message sent by a member when it receives a client request, before global sequence number assignment
 # Broadcast by a member when it receives a client request.
 #
 # Wire layout (after type byte):
@@ -82,11 +29,14 @@ class BaseMessage:
 #   H   payload_len
 #   …   payload
 
+MSG_REQUEST = 0x01
+MSG_SEQUENCE = 0x02
+MSG_RETRANSMIT_REQ = 0x03
+MSG_RETRANSMIT_SEQ = 0x04
+
 
 @dataclass
-class RequestMessage(BaseMessage):
-    MSG_TYPE: ClassVar[int] = 0x01
-
+class RequestMessage:
     sender_id: int
     local_seq_num: int
     highest_global_recvd: int
@@ -97,24 +47,25 @@ class RequestMessage(BaseMessage):
     def request_id(self) -> tuple[int, int]:
         return (self.sender_id, self.local_seq_num)
 
-    def _pack(self) -> bytes:
+    def to_bytes(self) -> bytes:
         n = len(self.local_counts)
         return (
-            struct.pack(
+            struct.pack("!B", MSG_REQUEST)
+            + struct.pack(
                 "!BIiiB",
                 self.sender_id,
                 self.local_seq_num,
                 self.highest_global_recvd,
                 self.highest_delivered,
                 n,
-            )  # fmt: skip
+            )
             + struct.pack(f"!{n}I", *self.local_counts)
             + struct.pack("!H", len(self.payload))
             + self.payload
         )
 
-    @classmethod
-    def _unpack(cls, data: bytes) -> "RequestMessage":
+    @staticmethod
+    def from_bytes(data: bytes) -> "RequestMessage":
         offset = 0
         sender_id, local_seq_num, highest_global_recvd, highest_delivered, n = (
             struct.unpack_from("!BIiiB", data, offset)
@@ -127,7 +78,7 @@ class RequestMessage(BaseMessage):
         (payload_len,) = struct.unpack_from("!H", data, offset)
         offset += 2
 
-        return cls(
+        return RequestMessage(
             sender_id=sender_id,
             local_seq_num=local_seq_num,
             highest_global_recvd=highest_global_recvd,
@@ -137,8 +88,7 @@ class RequestMessage(BaseMessage):
         )
 
 
-# ── SequenceMessage ────────────────────────────────────────────────────────────
-#
+# sequence message for assigning global sequence numbers, sent by the current sequencer
 # Broadcast by the current sequencer (member ID == k mod n) to assign global
 # sequence number k to a RequestMessage.
 #
@@ -150,12 +100,11 @@ class RequestMessage(BaseMessage):
 #   I   highest_global_recvd
 #   I   highest_delivered
 
+_SEQ_STRUCT = struct.Struct("!IBIBii")
+
 
 @dataclass
-class SequenceMessage(BaseMessage):
-    MSG_TYPE: ClassVar[int] = 0x02
-    _STRUCT: ClassVar[struct.Struct] = struct.Struct("!IBIBii")
-
+class SequenceMessage:
     global_seq_num: int
     req_sender_id: int
     req_local_seq: int
@@ -166,8 +115,8 @@ class SequenceMessage(BaseMessage):
     def request_id(self) -> tuple[int, int]:
         return (self.req_sender_id, self.req_local_seq)
 
-    def _fields(self):
-        return (
+    def to_bytes(self) -> bytes:
+        return struct.pack("!B", MSG_SEQUENCE) + _SEQ_STRUCT.pack(
             self.global_seq_num,
             self.req_sender_id,
             self.req_local_seq,
@@ -176,9 +125,12 @@ class SequenceMessage(BaseMessage):
             self.highest_delivered,
         )
 
+    @staticmethod
+    def from_bytes(data: bytes) -> "SequenceMessage":
+        return SequenceMessage(*_SEQ_STRUCT.unpack_from(data))
 
-# ── RetransmitRequestMessage ───────────────────────────────────────────────────
-#
+
+# retransmit message for missing RequestMessage
 # Unicast to req_sender_id when a gap in RequestMessages is detected.
 #
 # Wire layout (after type byte):
@@ -186,36 +138,85 @@ class SequenceMessage(BaseMessage):
 #   B   req_sender_id
 #   I   req_local_seq
 
+_RETRANSMIT_REQ_STRUCT = struct.Struct("!BBI")
+
 
 @dataclass
-class RetransmitRequestMessage(BaseMessage):
-    MSG_TYPE: ClassVar[int] = 0x03
-    _STRUCT: ClassVar[struct.Struct] = struct.Struct("!BBI")
-
+class RetransmitRequestMessage:
     requester_id: int
     req_sender_id: int
     req_local_seq: int
 
-    def _fields(self):
-        return (self.requester_id, self.req_sender_id, self.req_local_seq)
+    def to_bytes(self) -> bytes:
+        return struct.pack("!B", MSG_RETRANSMIT_REQ) + _RETRANSMIT_REQ_STRUCT.pack(
+            self.requester_id,
+            self.req_sender_id,
+            self.req_local_seq,
+        )
+
+    @staticmethod
+    def from_bytes(data: bytes) -> "RetransmitRequestMessage":
+        return RetransmitRequestMessage(*_RETRANSMIT_REQ_STRUCT.unpack_from(data))
 
 
-# ── RetransmitSequenceMessage ──────────────────────────────────────────────────
-#
+# retransmit message for missing SequenceMessage
 # Unicast to (global_seq_num mod n) when a gap in SequenceMessages is detected.
 #
 # Wire layout (after type byte):
 #   B   requester_id
 #   I   global_seq_num
 
+_RETRANSMIT_SEQ_STRUCT = struct.Struct("!BI")
+
 
 @dataclass
-class RetransmitSequenceMessage(BaseMessage):
-    MSG_TYPE: ClassVar[int] = 0x04
-    _STRUCT: ClassVar[struct.Struct] = struct.Struct("!BI")
-
+class RetransmitSequenceMessage:
     requester_id: int
     global_seq_num: int
 
-    def _fields(self):
-        return (self.requester_id, self.global_seq_num)
+    def to_bytes(self) -> bytes:
+        return struct.pack("!B", MSG_RETRANSMIT_SEQ) + _RETRANSMIT_SEQ_STRUCT.pack(
+            self.requester_id,
+            self.global_seq_num,
+        )
+
+    @staticmethod
+    def from_bytes(data: bytes) -> "RetransmitSequenceMessage":
+        return RetransmitSequenceMessage(*_RETRANSMIT_SEQ_STRUCT.unpack_from(data))
+
+
+# helper functions used by member
+
+Message = (
+    RequestMessage
+    | SequenceMessage
+    | RetransmitRequestMessage
+    | RetransmitSequenceMessage
+)
+
+_DECODERS = {
+    MSG_REQUEST: RequestMessage.from_bytes,
+    MSG_SEQUENCE: SequenceMessage.from_bytes,
+    MSG_RETRANSMIT_REQ: RetransmitRequestMessage.from_bytes,
+    MSG_RETRANSMIT_SEQ: RetransmitSequenceMessage.from_bytes,
+}
+
+
+def decode(data: bytes) -> Message:
+    if not data:
+        raise ValueError("Empty datagram")
+    msg_type = data[0]
+    decoder = _DECODERS.get(msg_type)
+    if decoder is None:
+        raise ValueError(f"Unknown message type: {msg_type:#04x}")
+    return decoder(data[1:])
+
+
+def send(sock: socket.socket, msg: Message, addr: tuple[str, int]) -> None:
+    sock.sendto(msg.to_bytes(), addr)
+
+
+def broadcast(sock: socket.socket, msg: Message, peers: list[tuple[str, int]]) -> None:
+    encoded = msg.to_bytes()
+    for addr in peers:
+        sock.sendto(encoded, addr)

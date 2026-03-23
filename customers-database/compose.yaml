@@ -50,7 +50,7 @@ services:
       MEMBER_ID: "0"
       DB_HOST: "postgres0"
     ports:
-      - "5000:5000"
+      - "5001:5000"
     networks:
       broadcast_net:
         aliases: [replica0]
@@ -81,7 +81,7 @@ services:
       MEMBER_ID: "1"
       DB_HOST: "postgres1"
     ports:
-      - "5001:5000"
+      - "5002:5000"
     networks:
       broadcast_net:
         aliases: [replica1]
@@ -112,7 +112,7 @@ services:
       MEMBER_ID: "2"
       DB_HOST: "postgres2"
     ports:
-      - "5002:5000"
+      - "5003:5000"
     networks:
       broadcast_net:
         aliases: [replica2]
@@ -143,7 +143,7 @@ services:
       MEMBER_ID: "3"
       DB_HOST: "postgres3"
     ports:
-      - "5003:5000"
+      - "5004:5000"
     networks:
       broadcast_net:
         aliases: [replica3]
@@ -175,7 +175,7 @@ services:
       MEMBER_ID: "4"
       DB_HOST: "postgres4"
     ports:
-      - "5004:5000"
+      - "5005:5000"
     networks:
       broadcast_net:
         aliases: [replica4]

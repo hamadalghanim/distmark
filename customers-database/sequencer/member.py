@@ -1,12 +1,6 @@
 """
-member.py — Rotating Sequencer Atomic Broadcast
-
-Member tracks global ordering and calls deliver_callback(global_seq, rid, payload)
-for each request in order. On the submitting node, it also sets the caller's
-threading.Event so the gRPC thread can wake up and do its own DB write.
-
-The deliver_callback is called AFTER event.set(), so a slow or failing callback
-on the submitting replica never blocks the gRPC response.
+member class, each member runs this to keep track of different loops like
+sequencing, delivering, and receiving messages. Also contains the callback that is called when a message is delivered, which in our case is the function that applies the operation to the database.
 """
 
 import logging
@@ -15,7 +9,9 @@ import threading
 import time
 
 from sequencer.messages import (
-    BaseMessage,
+    decode,
+    send,
+    broadcast,
     RequestMessage,
     SequenceMessage,
     RetransmitRequestMessage,
@@ -33,8 +29,8 @@ class Member:
         self.id = member_id
         self.n = n
         self.peers = peers
-        self._cb = (
-            deliver_callback  # called for every delivered request on every replica
+        self._callback = (
+            deliver_callback  # needs to follow signature (global_seq, rid, payload)
         )
 
         self._sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -69,8 +65,6 @@ class Member:
         except OSError:
             pass
 
-    # ── Submit ─────────────────────────────────────────────────────────────────
-
     def submit(self, payload: bytes):
         """
         Broadcast payload. Returns (event, rid).
@@ -92,11 +86,9 @@ class Member:
                 local_counts=[],
             )
 
-        self._requests[rid].broadcast(self._sock, self.peers)
+        broadcast(self._sock, self._requests[rid], self.peers)
         logger.info("Member %d submitted rid=%s", self.id, rid)
         return event, rid
-
-    # ── Receive loop ───────────────────────────────────────────────────────────
 
     def _recv_loop(self):
         while self._running:
@@ -105,7 +97,7 @@ class Member:
             except OSError:
                 continue
             try:
-                msg = BaseMessage.from_bytes(data)
+                msg = decode(data)
             except Exception as e:
                 logger.warning("Member %d bad datagram: %s", self.id, e)
                 continue
@@ -142,7 +134,7 @@ class Member:
             req = self._requests.get(rid)
         if req is not None and req.sender_id == self.id:
             try:
-                req.send(self._sock, self.peers[msg.requester_id])
+                send(self._sock, req, self.peers[msg.requester_id])
             except OSError:
                 pass
 
@@ -154,13 +146,11 @@ class Member:
             rid = self._assignments.get(k)
         if rid is not None:
             try:
-                self._make_seq_msg(k, rid).send(
-                    self._sock, self.peers[msg.requester_id]
+                send(
+                    self._sock, self._make_seq_msg(k, rid), self.peers[msg.requester_id]
                 )
             except OSError:
                 pass
-
-    # ── Sequencer loop ─────────────────────────────────────────────────────────
 
     def _sequencer_loop(self):
         while self._running:
@@ -169,7 +159,7 @@ class Member:
             if chosen is not None:
                 k, rid = chosen
                 try:
-                    self._make_seq_msg(k, rid).broadcast(self._sock, self.peers)
+                    broadcast(self._sock, self._make_seq_msg(k, rid), self.peers)
                 except OSError as e:
                     logger.warning("Member %d seq broadcast error: %s", self.id, e)
 
@@ -208,8 +198,6 @@ class Member:
             logger.info("Member %d assigned k=%d to rid=%s", self.id, k, chosen)
             return (k, chosen)
 
-    # ── Deliver loop ───────────────────────────────────────────────────────────
-
     def _deliver_loop(self):
         while self._running:
             time.sleep(_POLL)
@@ -236,11 +224,9 @@ class Member:
             event.set()
 
         try:
-            self._cb(s, rid, req.payload)
+            self._callback(s, rid, req.payload)
         except Exception:
             logger.exception("Member %d callback error global_seq=%d", self.id, s)
-
-    # ── Helpers ────────────────────────────────────────────────────────────────
 
     def _make_seq_msg(self, k, rid) -> SequenceMessage:
         with self._lock:

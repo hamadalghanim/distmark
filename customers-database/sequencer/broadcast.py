@@ -1,7 +1,6 @@
 """
 customers_broadcast.py — Broadcast shim for the customers service
 
-Same design as broadcast.py but wired to customers_pb2 and customers_engine.
 Every write (CreateAccount, Login, Logout, AddItemToCart, etc.) goes through
 atomic broadcast so all 5 customer nodes stay consistent.
 
@@ -30,76 +29,13 @@ OP_MAKE_PURCHASE = 0x08
 _OP = struct.Struct("!B")
 
 
-class BroadcastShim:
-    def __init__(self):
-        self.member: Member = None
-        self._handlers: dict = {}
-        self._submitted: set = set()
-        self._submitted_lock = threading.Lock()
-
-    def register(self, opcode, proto_class, handler_fn):
-        self._handlers[opcode] = (proto_class, handler_fn)
-
-    def broadcast(self, opcode: int, proto_request):
-        """Submit to broadcast, block until ordering slot, run handler, return response."""
-        payload = _OP.pack(opcode) + proto_request.SerializeToString()
-        event, rid = self.member.submit(payload)
-
-        with self._submitted_lock:
-            self._submitted.add(rid)
-
-        event.wait()
-
-        return self._run_handler(opcode, proto_request.SerializeToString())
-
-    def deliver(self, global_seq, rid, payload):
-        """Deliver callback — skip submitter (already handled), run handler on others."""
-        with self._submitted_lock:
-            is_mine = rid in self._submitted
-            if is_mine:
-                self._submitted.discard(rid)
-
-        if is_mine:
-            logger.debug(
-                "deliver global_seq=%d rid=%s: skipped (submitter)", global_seq, rid
-            )
-            return
-
-        opcode = _OP.unpack_from(payload, 0)[0]
-        body = payload[1:]
-        self._run_handler(opcode, body)
-
-    def _run_handler(self, opcode, body: bytes):
-        entry = self._handlers.get(opcode)
-        if entry is None:
-            logger.error("unknown opcode %#x", opcode)
-            return None
-        proto_class, handler_fn = entry
-        try:
-            req = proto_class()
-            req.ParseFromString(body)
-            return handler_fn(req)
-        except Exception:
-            logger.exception("handler for opcode %#x raised", opcode)
-            return None
-
-
-class BroadcastMixin:
-    """Mixin for CustomerAPI. Requires self._shim set by setup_member()."""
-
-    _shim: BroadcastShim
-
-    def _broadcast(self, opcode, proto_request):
-        return self._shim.broadcast(opcode, proto_request)
-
-
 def setup_member(member_id, n, peer_addrs, api) -> Member:
     from proto import customers_pb2
     from db import Buyer, BuyerSession, Cart, CartItem, ItemsBought
     from sqlalchemy.orm import Session
     from utils import customers_engine, getAndValidateSession
 
-    shim = BroadcastShim()
+    # ── Helpers ───────────────────────────────────────────────────────────────
 
     def _get_or_create_cart(session: BuyerSession, s: Session) -> Cart:
         cart = (
@@ -328,8 +264,7 @@ def setup_member(member_id, n, peer_addrs, api) -> Member:
                 .first()
             )
             try:
-                cart_items = s.query(CartItem).filter_by(cart_id=saved.id).all()
-                for ci in cart_items:
+                for ci in s.query(CartItem).filter_by(cart_id=saved.id).all():
                     s.add(
                         ItemsBought(
                             buyer_id=result.session.buyer_id,
@@ -345,30 +280,49 @@ def setup_member(member_id, n, peer_addrs, api) -> Member:
                     success=False, message=f"Purchase failed: {e}"
                 )
 
-    shim.register(
-        OP_CREATE_ACCOUNT, customers_pb2.CreateAccountRequest, _create_account
-    )
-    shim.register(OP_LOGIN, customers_pb2.LoginRequest, _login)
-    shim.register(OP_LOGOUT, customers_pb2.LogoutRequest, _logout)
-    shim.register(
-        OP_ADD_ITEM_TO_CART, customers_pb2.AddItemToCartRequest, _add_item_to_cart
-    )
-    shim.register(
-        OP_REMOVE_ITEM_FROM_CART,
-        customers_pb2.RemoveItemFromCartRequest,
-        _remove_item_from_cart,
-    )
-    shim.register(OP_CLEAR_CART, customers_pb2.ClearCartRequest, _clear_cart)
-    shim.register(OP_SAVE_CART, customers_pb2.SaveCartRequest, _save_cart)
-    shim.register(OP_MAKE_PURCHASE, customers_pb2.MakePurchaseRequest, _make_purchase)
 
-    member = Member(
-        member_id=member_id,
-        n=n,
-        peers=peer_addrs,
-        deliver_callback=shim.deliver,
-    )
-    shim.member = member
-    api._shim = shim
+    # dispatch table each operation calls a function,
+    _handlers = {
+        OP_CREATE_ACCOUNT: (customers_pb2.CreateAccountRequest, _create_account),
+        OP_LOGIN: (customers_pb2.LoginRequest, _login),
+        OP_LOGOUT: (customers_pb2.LogoutRequest, _logout),
+        OP_ADD_ITEM_TO_CART: (customers_pb2.AddItemToCartRequest, _add_item_to_cart),
+        OP_REMOVE_ITEM_FROM_CART: (
+            customers_pb2.RemoveItemFromCartRequest,
+            _remove_item_from_cart,
+        ),
+        OP_CLEAR_CART: (customers_pb2.ClearCartRequest, _clear_cart),
+        OP_SAVE_CART: (customers_pb2.SaveCartRequest, _save_cart),
+        OP_MAKE_PURCHASE: (customers_pb2.MakePurchaseRequest, _make_purchase),
+    }
+
+    def _run(opcode, body):
+        proto_class, fn = _handlers[opcode]
+        req = proto_class()
+        req.ParseFromString(body)
+        return fn(req)
+
+
+    _pending: dict = {}
+    _pending_lock = threading.Lock()
+
+    def broadcast(opcode, proto_request):
+        payload = _OP.pack(opcode) + proto_request.SerializeToString()
+        event, rid = member.submit(payload)
+        with _pending_lock:
+            _pending[rid] = event
+        event.wait()
+        return _run(opcode, proto_request.SerializeToString())
+
+    def deliver(global_seq, rid, payload):
+        with _pending_lock:
+            is_mine = _pending.pop(rid, None) is not None
+        if not is_mine:
+            _run(_OP.unpack_from(payload)[0], payload[1:])
+
+    # ── Wire it up ────────────────────────────────────────────────────────────
+
+    member = Member(member_id, n, peer_addrs, deliver_callback=deliver)
+    api._broadcast = broadcast
     member.start()
     return member

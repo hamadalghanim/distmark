@@ -26,7 +26,6 @@ from sqlalchemy.orm import Session
 from utils import customers_engine, getAndValidateSession
 
 from sequencer.broadcast import (
-    BroadcastMixin,
     setup_member,
     OP_CREATE_ACCOUNT,
     OP_LOGIN,
@@ -50,8 +49,7 @@ def _load_config():
     return member_id, n, peers
 
 
-class CustomerAPI(BroadcastMixin, customers_pb2_grpc.CustomersServiceServicer):
-    # ── Writes — go through broadcast ────────────────────────────────────────
+class CustomerAPI(customers_pb2_grpc.CustomersServiceServicer):
 
     def CreateAccount(self, request, context):
         return self._broadcast(OP_CREATE_ACCOUNT, request)
