@@ -1,3 +1,4 @@
+import itertools
 import os
 import grpc
 
@@ -8,14 +9,22 @@ from proto import products_pb2_grpc
 
 PRODUCTS_GRPC_ADDRESSES = os.getenv(
     "PRODUCTS_RPC_ADDRS",
-    "products-node0:5000",
+    "products-node0:5000,products-node1:5000,products-node2:5000,products-node3:5000,products-node4:5000",
 )
 
-_products_channel = grpc.insecure_channel(
-    PRODUCTS_GRPC_ADDRESSES,
-    options=[("grpc.lb_policy_name", "round_robin")],
-)
-_stub = products_pb2_grpc.SellerServiceStub(_products_channel)
+
+class RoundRobinStub:
+    def __init__(self, stub_class, addresses: str):
+        channels = [
+            grpc.insecure_channel(addr.strip()) for addr in addresses.split(",")
+        ]
+        self._stubs = itertools.cycle([stub_class(ch) for ch in channels])
+
+    def __getattr__(self, name):
+        return getattr(next(self._stubs), name)
+
+
+_stub = RoundRobinStub(products_pb2_grpc.SellerServiceStub, PRODUCTS_GRPC_ADDRESSES)
 
 
 def _item_to_dict(item):

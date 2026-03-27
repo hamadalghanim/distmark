@@ -244,10 +244,6 @@ class SellerAPI(RaftMixin, products_pb2_grpc.SellerServiceServicer):
 
 
 def seed(engine):
-    with Session(engine) as s:
-        s.execute(text("CREATE EXTENSION IF NOT EXISTS pg_trgm;"))
-        s.commit()
-
     BaseProducts.metadata.create_all(engine)
 
     with Session(engine) as s:
