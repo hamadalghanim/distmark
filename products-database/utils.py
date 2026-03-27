@@ -14,17 +14,13 @@ DB_HOST = os.environ.get("DB_HOST", "products-database")
 DB_PORT = os.environ.get("DB_PORT", "5432")
 DB_NAME = os.environ.get("DB_NAME", "products")
 
+
 products_engine = create_engine(
-    URL.create(
-        "postgresql+psycopg2",
-        username=DB_USER,
-        password=DB_PASS,
-        host=DB_HOST,
-        port=DB_PORT,
-        database=DB_NAME,
-    ),
+    f"sqlite:///{DB_NAME}.db",
+    connect_args={"check_same_thread": False},  # needed for multi-threaded use
     pool_size=20,
-    max_overflow=0,
+    max_overflow=20,
+    pool_pre_ping=True,
 )
 
 

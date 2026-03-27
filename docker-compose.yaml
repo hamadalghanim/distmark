@@ -8,20 +8,14 @@ x-products-node-env: &products-node-env
   DB_PORT: "5432"
   DB_NAME: "products"
 
-x-products-pg-env: &products-pg-env
-  POSTGRES_USER: "user"
-  POSTGRES_PASSWORD: "pass"
-  POSTGRES_DB: "products"
-
-x-products-pg-hc: &products-pg-hc
-  test: ["CMD-SHELL", "pg_isready -U user -d products"]
-  interval: 5s
-  timeout: 3s
-  retries: 10
-
 x-products-node-hc: &products-node-hc
-  test: ["CMD", "python", "-c",
-         "import socket; s = socket.create_connection(('localhost', 5000), timeout=2); s.close()"]
+  test:
+    [
+      "CMD",
+      "python",
+      "-c",
+      "import socket; s = socket.create_connection(('localhost', 5000), timeout=2); s.close()",
+    ]
   interval: 5s
   timeout: 3s
   retries: 10
@@ -35,20 +29,14 @@ x-customers-node-env: &customers-node-env
   DB_PORT: "5432"
   DB_NAME: "customers"
 
-x-customers-pg-env: &customers-pg-env
-  POSTGRES_USER: "user"
-  POSTGRES_PASSWORD: "pass"
-  POSTGRES_DB: "customers"
-
-x-customers-pg-hc: &customers-pg-hc
-  test: ["CMD-SHELL", "pg_isready -U user -d customers"]
-  interval: 5s
-  timeout: 3s
-  retries: 10
-
 x-customers-node-hc: &customers-node-hc
-  test: ["CMD", "python", "-c",
-         "import socket; s = socket.create_connection(('localhost', 5000), timeout=2); s.close()"]
+  test:
+    [
+      "CMD",
+      "python",
+      "-c",
+      "import socket; s = socket.create_connection(('localhost', 5000), timeout=2); s.close()",
+    ]
   interval: 5s
   timeout: 3s
   retries: 10
@@ -70,7 +58,7 @@ services:
       products-node4:
         condition: service_healthy
     environment:
-      PRODUCTS_RPC_ADDRS: "products-node0:5000"
+      PRODUCTS_RPC_ADDRS: "products-node0:5000,products-node1:5000,products-node2:5000,products-node3:5000,products-node4:5000"
 
   buyer-frontend:
     build: buyer-frontend
@@ -98,21 +86,13 @@ services:
       customers-node4:
         condition: service_healthy
     environment:
-      PRODUCTS_RPC_ADDRS: "products-node0:5000"
-      CUSTOMERS_RPC_ADDRS: "customers-node0:5000"
+      PRODUCTS_RPC_ADDRS: "products-node0:5000,products-node1:5000,products-node2:5000,products-node3:5000,products-node4:5000"
+      CUSTOMERS_RPC_ADDRS: "customers-node0:5000,customers-node1:5000,customers-node2:5000,customers-node3:5000,customers-node4:5000"
 
   # - payment service
   payments-api:
     build: payments-api
-  # - Products nodes 
-
-  products-pg0:
-    image: postgres:16-alpine
-    restart: always
-    environment: *products-pg-env
-    volumes:
-      - products-pgdata0:/var/lib/postgresql/data
-    healthcheck: *products-pg-hc
+  # - Products nodes
 
   products-node0:
     build: products-database
@@ -123,18 +103,7 @@ services:
     networks:
       default:
         aliases: [products-node0]
-    depends_on:
-      products-pg0:
-        condition: service_healthy
     healthcheck: *products-node-hc
-
-  products-pg1:
-    image: postgres:16-alpine
-    restart: always
-    environment: *products-pg-env
-    volumes:
-      - products-pgdata1:/var/lib/postgresql/data
-    healthcheck: *products-pg-hc
 
   products-node1:
     build: products-database
@@ -145,18 +114,7 @@ services:
     networks:
       default:
         aliases: [products-node1]
-    depends_on:
-      products-pg1:
-        condition: service_healthy
     healthcheck: *products-node-hc
-
-  products-pg2:
-    image: postgres:16-alpine
-    restart: always
-    environment: *products-pg-env
-    volumes:
-      - products-pgdata2:/var/lib/postgresql/data
-    healthcheck: *products-pg-hc
 
   products-node2:
     build: products-database
@@ -167,18 +125,7 @@ services:
     networks:
       default:
         aliases: [products-node2]
-    depends_on:
-      products-pg2:
-        condition: service_healthy
     healthcheck: *products-node-hc
-
-  products-pg3:
-    image: postgres:16-alpine
-    restart: always
-    environment: *products-pg-env
-    volumes:
-      - products-pgdata3:/var/lib/postgresql/data
-    healthcheck: *products-pg-hc
 
   products-node3:
     build: products-database
@@ -189,18 +136,7 @@ services:
     networks:
       default:
         aliases: [products-node3]
-    depends_on:
-      products-pg3:
-        condition: service_healthy
     healthcheck: *products-node-hc
-
-  products-pg4:
-    image: postgres:16-alpine
-    restart: always
-    environment: *products-pg-env
-    volumes:
-      - products-pgdata4:/var/lib/postgresql/data
-    healthcheck: *products-pg-hc
 
   products-node4:
     build: products-database
@@ -211,20 +147,9 @@ services:
     networks:
       default:
         aliases: [products-node4]
-    depends_on:
-      products-pg4:
-        condition: service_healthy
     healthcheck: *products-node-hc
 
   # - Customers nodes
-
-  customers-pg0:
-    image: postgres:16-alpine
-    restart: always
-    environment: *customers-pg-env
-    volumes:
-      - customers-pgdata0:/var/lib/postgresql/data
-    healthcheck: *customers-pg-hc
 
   customers-node0:
     build: customers-database
@@ -235,18 +160,7 @@ services:
     networks:
       default:
         aliases: [customers-node0]
-    depends_on:
-      customers-pg0:
-        condition: service_healthy
     healthcheck: *customers-node-hc
-
-  customers-pg1:
-    image: postgres:16-alpine
-    restart: always
-    environment: *customers-pg-env
-    volumes:
-      - customers-pgdata1:/var/lib/postgresql/data
-    healthcheck: *customers-pg-hc
 
   customers-node1:
     build: customers-database
@@ -257,18 +171,7 @@ services:
     networks:
       default:
         aliases: [customers-node1]
-    depends_on:
-      customers-pg1:
-        condition: service_healthy
     healthcheck: *customers-node-hc
-
-  customers-pg2:
-    image: postgres:16-alpine
-    restart: always
-    environment: *customers-pg-env
-    volumes:
-      - customers-pgdata2:/var/lib/postgresql/data
-    healthcheck: *customers-pg-hc
 
   customers-node2:
     build: customers-database
@@ -279,18 +182,7 @@ services:
     networks:
       default:
         aliases: [customers-node2]
-    depends_on:
-      customers-pg2:
-        condition: service_healthy
     healthcheck: *customers-node-hc
-
-  customers-pg3:
-    image: postgres:16-alpine
-    restart: always
-    environment: *customers-pg-env
-    volumes:
-      - customers-pgdata3:/var/lib/postgresql/data
-    healthcheck: *customers-pg-hc
 
   customers-node3:
     build: customers-database
@@ -301,18 +193,7 @@ services:
     networks:
       default:
         aliases: [customers-node3]
-    depends_on:
-      customers-pg3:
-        condition: service_healthy
     healthcheck: *customers-node-hc
-
-  customers-pg4:
-    image: postgres:16-alpine
-    restart: always
-    environment: *customers-pg-env
-    volumes:
-      - customers-pgdata4:/var/lib/postgresql/data
-    healthcheck: *customers-pg-hc
 
   customers-node4:
     build: customers-database
@@ -323,19 +204,4 @@ services:
     networks:
       default:
         aliases: [customers-node4]
-    depends_on:
-      customers-pg4:
-        condition: service_healthy
     healthcheck: *customers-node-hc
-
-volumes:
-  products-pgdata0:
-  products-pgdata1:
-  products-pgdata2:
-  products-pgdata3:
-  products-pgdata4:
-  customers-pgdata0:
-  customers-pgdata1:
-  customers-pgdata2:
-  customers-pgdata3:
-  customers-pgdata4:
