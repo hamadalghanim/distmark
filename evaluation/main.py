@@ -29,7 +29,7 @@ class EndpointStats:
         return self.total_ms / self.count if self.count else 0.0
 
     @property
-    def throughput(self, elapsed: float = None):
+    def throughput(self):
         return self.count / (self.total_ms / 1000) if self.total_ms else 0.0
 
 
@@ -188,7 +188,7 @@ def perform_random_buyer_cmd(session_id: str, client_id: str):
     _timed(f"buyer  {key}", client_id, fn)
 
 
-# ── Seller commands ────────────────────────────────────────────────────────────
+# seller
 
 
 def perform_random_seller_cmd(session_id: str, item_id, client_id: str):
@@ -263,7 +263,7 @@ def perform_random_seller_cmd(session_id: str, item_id, client_id: str):
     _timed(f"seller {key}", client_id, fn)
 
 
-# ── Client runners ─────────────────────────────────────────────────────────────
+# client
 
 
 def run_seller_client(id: int, scenario: int):
@@ -408,51 +408,39 @@ def print_scenario_report(
     elapsed: float,
     endpoint_snapshot: dict,
     client_snapshot: dict,
+    file=None,  # pass an open file handle, or None for stdout
 ):
+    def p(*args, **kwargs):
+        print(*args, **kwargs, file=file)
+
     total_ops = sum(s.count for s in endpoint_snapshot.values())
     total_errors = sum(s.errors for s in endpoint_snapshot.values())
     throughput = total_ops / elapsed if elapsed else 0
 
-    print(f"\n{'═' * 70}")
-    print(f"  SCENARIO {scenario}  —  {clients} buyer(s) + {clients} seller(s)")
-    print(f"{'═' * 70}")
-    print(f"  Elapsed:    {elapsed:.2f}s")
-    print(f"  Total ops:  {total_ops}  ({total_errors} errors)")
-    print(f"  Throughput: {throughput:.1f} ops/sec")
+    p(f"\n{'═' * 70}")
+    p(f"  SCENARIO {scenario}  —  {clients} buyer(s) + {clients} seller(s)")
+    p(f"{'═' * 70}")
+    p(f"  Elapsed:    {elapsed:.2f}s")
+    p(f"  Total ops:  {total_ops}  ({total_errors} errors)")
+    p(f"  Throughput: {throughput:.1f} ops/sec")
 
-    # Per-endpoint breakdown
-    print(f"\n  {'ENDPOINT':<40} {'CALLS':>7} {'AVG ms':>9} {'ERR':>6}")
-    print(f"  {'-' * 40} {'-' * 7} {'-' * 9} {'-' * 6}")
+    p(f"\n  {'ENDPOINT':<40} {'CALLS':>7} {'AVG ms':>9} {'ERR':>6}")
+    p(f"  {'-' * 40} {'-' * 7} {'-' * 9} {'-' * 6}")
     for key in sorted(endpoint_snapshot):
         s = endpoint_snapshot[key]
-        print(f"  {key:<40} {s.count:>7} {s.avg_ms:>9.1f} {s.errors:>6}")
+        p(f"  {key:<40} {s.count:>7} {s.avg_ms:>9.1f} {s.errors:>6}")
 
-    # Per-client summary (just show outliers: slowest 5 avg)
     if client_snapshot:
         sorted_clients = sorted(
             client_snapshot.items(), key=lambda x: x[1].avg_ms, reverse=True
         )
-        print(f"\n  TOP 5 SLOWEST CLIENTS (avg ms)")
-        print(f"  {'CLIENT':<35} {'CALLS':>7} {'AVG ms':>9} {'ERR':>6}")
-        print(f"  {'-' * 35} {'-' * 7} {'-' * 9} {'-' * 6}")
+        p("\n  TOP 5 SLOWEST CLIENTS (avg ms)")
+        p(f"  {'CLIENT':<35} {'CALLS':>7} {'AVG ms':>9} {'ERR':>6}")
+        p(f"  {'-' * 35} {'-' * 7} {'-' * 9} {'-' * 6}")
         for cid, s in sorted_clients[:5]:
-            print(f"  {cid:<35} {s.count:>7} {s.avg_ms:>9.1f} {s.errors:>6}")
+            p(f"  {cid:<35} {s.count:>7} {s.avg_ms:>9.1f} {s.errors:>6}")
 
-    print()
-
-
-def select_client_counts():
-    print("\nNumber of clients per scenario")
-    print("1. Default ([1, 10, 100])")
-    print("2. Custom")
-    choice = input("Select option (1 or 2): ").strip()
-    if choice == "2":
-        raw = input("Enter comma-separated counts (e.g., 1,5,20,50): ").strip()
-        try:
-            return [int(x.strip()) for x in raw.split(",")]
-        except ValueError:
-            print("Invalid input, using default")
-    return [1, 10, 100]
+    p()
 
 
 def select_environment(service_name, local_url, gcp_url):
@@ -476,7 +464,7 @@ def main():
     SELLER_BASE_URL = select_environment(
         "Seller Frontend", "http://localhost:8000", "http://34.70.9.107:80"
     )
-    counts = select_client_counts()
+    counts = [1, 10, 100]
 
     print(f"\nBuyer:  {BUYER_BASE_URL}")
     print(f"Seller: {SELLER_BASE_URL}")
@@ -515,10 +503,10 @@ def main():
                 k: EndpointStats(v.count, v.total_ms, v.errors)
                 for k, v in _client_stats.items()
             }
-
-        print_scenario_report(
-            scenario, clients, elapsed, endpoint_snapshot, client_snapshot
-        )
+        with open("report.txt", "a") as f:
+            print_scenario_report(
+                scenario, clients, elapsed, endpoint_snapshot, client_snapshot, file=f
+            )
 
 
 if __name__ == "__main__":
