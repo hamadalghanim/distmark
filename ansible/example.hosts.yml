@@ -1,90 +1,124 @@
+# NAME               NETWORK_IP
+# customer-frontend  10.180.0.20
+# customers-rpc-0    10.180.0.15
+# customers-rpc-1    10.180.0.16
+# customers-rpc-2    10.180.0.17
+# customers-rpc-3    10.180.0.18
+# customers-rpc-4    10.180.0.19
+# payment-api        10.180.0.22
+# products-rpc-0     10.180.0.10
+# products-rpc-1     10.180.0.11
+# products-rpc-2     10.180.0.12
+# products-rpc-3     10.180.0.13
+# products-rpc-4     10.180.0.14
+# seller-frontend    10.180.0.21
+
 all:
   vars:
-    ansible_ssh_private_key_file: ~/.ssh/id_rsa
-    ansible_ssh_common_args: "-o StrictHostKeyChecking=no"
-    ansible_user: your_user
-
+    ansible_ssh_private_key_file: ~/.ssh/gcp-ansible-key
+    ansible_ssh_common_args: "-o StrictHostKeyChecking=no -o ProxyCommand='gcloud compute start-iap-tunnel %h 22 --listen-on-stdin --zone=us-west3-a --project=distributed-systems-487323'"
+    ansible_user: hamad
   children:
     frontends:
       vars:
         container_env:
-          CUSTOMERS_RPC_ADDRS: "10.0.1.4:5000,10.0.1.5:5000,10.0.1.6:5000,10.0.1.7:5000,10.0.1.8:5000"
-          PRODUCTS_RPC_ADDRS: "10.0.1.10:5000,10.0.1.11:5000,10.0.1.12:5000,10.0.1.13:5000,10.0.1.14:5000"
-          WSDL_PAYMENT_HOST: "10.0.1.9"
+          CUSTOMERS_RPC_ADDRS: "10.180.0.15:5000,10.180.0.16:5000,10.180.0.17:5000,10.180.0.18:5000,10.180.0.19:5000"
+          PRODUCTS_RPC_ADDRS: "10.180.0.10:5000,10.180.0.11:5000,10.180.0.12:5000,10.180.0.13:5000,10.180.0.14:5000"
+          WSDL_PAYMENT_HOST: "10.180.0.22"
           WSDL_PAYMENT_PORT: "80"
+          RAFT_ADDRS: "10.180.0.10:7000,10.180.0.11:7000,10.180.0.12:7000,10.180.0.13:7000,10.180.0.14:7000"
+          PEER_ADDRS: "10.180.0.15:6100,10.180.0.16:6100,10.180.0.17:6100,10.180.0.18:6103,10.180.0.19:6100"
+
       hosts:
         customer-frontend:
-          ansible_host: 192.168.1.10
           service: buyer-frontend
-          service_port: 80
+          service_ports:
+            - "80:5000"
         products-frontend:
-          ansible_host: 192.168.1.11
           service: seller-frontend
-          service_port: 80
-
-    customers_rpcs:
-      vars:
-        container_env:
-          DB_USER: postgres
-          DB_PASS: your_secure_password
-          DB_HOST: 10.0.2.13
-          DB_PORT: 5432
-          DB_NAME: customers
+          service_ports:
+            - "80:5000"
+    rpcs:
       hosts:
         customers-rpc-0:
-          ansible_host: 192.168.1.20
-          service: customers-rpc
-          member_id: 0
+          service: customers-database
+          service_ports:
+            - "5000:5000"
+            - "6100:6100"
+          container_env:
+            DB_NAME: "customers"
         customers-rpc-1:
-          ansible_host: 192.168.1.21
-          service: customers-rpc
-          member_id: 1
+          service: customers-database
+          service_ports:
+            - "5000:5000"
+            - "6100:6100"
+          container_env:
+            DB_NAME: "customers"
         customers-rpc-2:
-          ansible_host: 192.168.1.22
-          service: customers-rpc
-          member_id: 2
+          service: customers-database
+          service_ports:
+            - "5000:5000"
+            - "6100:6100"
+          container_env:
+            DB_NAME: "customers"
         customers-rpc-3:
-          ansible_host: 192.168.1.23
-          service: customers-rpc
-          member_id: 3
+          service: customers-database
+          service_ports:
+            - "5000:5000"
+            - "6100:6100"
+          container_env:
+            DB_NAME: "customers"
         customers-rpc-4:
-          ansible_host: 192.168.1.24
-          service: customers-rpc
-          member_id: 4
-
-    products_rpcs:
-      vars:
-        container_env:
-          DB_USER: postgres
-          DB_PASS: your_secure_password
-          DB_HOST: 10.0.2.14
-          DB_PORT: 5432
-          DB_NAME: products
-      hosts:
+          service: customers-database
+          service_ports:
+            - "5000:5000"
+            - "6100:6100"
+          container_env:
+            DB_NAME: "customers"
         products-rpc-0:
-          ansible_host: 192.168.1.30
-          service: products-rpc
-          member_id: 0
+          service: products-database
+          service_ports:
+            - "5000:5000"
+            - "7000:7000"
+          container_env:
+            MEMBER_ID: "0"
+            DB_NAME: "products"
         products-rpc-1:
-          ansible_host: 192.168.1.31
-          service: products-rpc
-          member_id: 1
+          service: products-database
+          service_ports:
+            - "5000:5000"
+            - "7000:7000"
+          container_env:
+            MEMBER_ID: "1"
+            DB_NAME: "products"
         products-rpc-2:
-          ansible_host: 192.168.1.32
-          service: products-rpc
-          member_id: 2
+          service: products-database
+          service_ports:
+            - "5000:5000"
+            - "7000:7000"
+          container_env:
+            MEMBER_ID: "2"
+            DB_NAME: "products"
         products-rpc-3:
-          ansible_host: 192.168.1.33
-          service: products-rpc
-          member_id: 3
+          service: products-database
+          service_ports:
+            - "5000:5000"
+            - "7000:7000"
+          container_env:
+            MEMBER_ID: "3"
+            DB_NAME: "products"
         products-rpc-4:
-          ansible_host: 192.168.1.34
-          service: products-rpc
-          member_id: 4
+          service: products-database
+          service_ports:
+            - "5000:5000"
+            - "7000:7000"
+          container_env:
+            MEMBER_ID: "4"
+            DB_NAME: "products"
 
     payments:
       hosts:
         payments-api:
-          ansible_host: 192.168.1.40
           service: payments-api
-          service_port: 80
+          service_ports:
+            - "80:5000"
