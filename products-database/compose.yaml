@@ -6,21 +6,7 @@
 
 x-node-env: &node-env
   RAFT_ADDRS: "products-node0:7000,products-node1:7001,products-node2:7002,products-node3:7003,products-node4:7004"
-  DB_USER: "user"
-  DB_PASS: "pass"
-  DB_PORT: "5432"
   DB_NAME: "products"
-
-x-pg-env: &pg-env
-  POSTGRES_USER: "user"
-  POSTGRES_PASSWORD: "pass"
-  POSTGRES_DB: "products"
-
-x-pg-healthcheck: &pg-healthcheck
-  test: ["CMD-SHELL", "pg_isready -U user -d products"]
-  interval: 5s
-  timeout: 3s
-  retries: 10
 
 x-node-healthcheck: &node-healthcheck
   test: ["CMD", "python", "-c",
@@ -31,12 +17,6 @@ x-node-healthcheck: &node-healthcheck
 
 services:
 
-  products-pg0:
-    image: postgres:16-alpine
-    environment: *pg-env
-    volumes:
-      - pgdata0:/var/lib/postgresql/data
-    healthcheck: *pg-healthcheck
 
   products-node0:
     build: .
@@ -49,17 +29,8 @@ services:
         aliases: [products-node0]
     ports:
       - "5000:5000"
-    depends_on:
-      products-pg0:
-        condition: service_healthy
     healthcheck: *node-healthcheck
 
-  products-pg1:
-    image: postgres:16-alpine
-    environment: *pg-env
-    volumes:
-      - pgdata1:/var/lib/postgresql/data
-    healthcheck: *pg-healthcheck
 
   products-node1:
     build: .
@@ -72,17 +43,7 @@ services:
         aliases: [products-node1]
     ports:
       - "5001:5000"
-    depends_on:
-      products-pg1:
-        condition: service_healthy
     healthcheck: *node-healthcheck
-
-  products-pg2:
-    image: postgres:16-alpine
-    environment: *pg-env
-    volumes:
-      - pgdata2:/var/lib/postgresql/data
-    healthcheck: *pg-healthcheck
 
   products-node2:
     build: .
@@ -95,40 +56,20 @@ services:
         aliases: [products-node2]
     ports:
       - "5002:5000"
-    depends_on:
-      products-pg2:
-        condition: service_healthy
     healthcheck: *node-healthcheck
 
-  products-pg3:
-    image: postgres:16-alpine
-    environment: *pg-env
-    volumes:
-      - pgdata3:/var/lib/postgresql/data
-    healthcheck: *pg-healthcheck
 
   products-node3:
     build: .
     environment:
       <<: *node-env
       MEMBER_ID: "3"
-      DB_HOST: "products-pg3"
     networks:
       default:
         aliases: [products-node3]
     ports:
       - "5003:5000"
-    depends_on:
-      products-pg3:
-        condition: service_healthy
     healthcheck: *node-healthcheck
-
-  products-pg4:
-    image: postgres:16-alpine
-    environment: *pg-env
-    volumes:
-      - pgdata4:/var/lib/postgresql/data
-    healthcheck: *pg-healthcheck
 
   products-node4:
     build: .
@@ -141,9 +82,6 @@ services:
         aliases: [products-node4]
     ports:
       - "5004:5000"
-    depends_on:
-      products-pg4:
-        condition: service_healthy
     healthcheck: *node-healthcheck
 
   test:

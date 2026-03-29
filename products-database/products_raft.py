@@ -1,5 +1,6 @@
 import logging
 import datetime
+import threading
 import time
 
 from pysyncobj import SyncObj, SyncObjConf, replicated
@@ -473,16 +474,7 @@ class RaftMixin:
 def setup_raft(member_id: int, peer_addrs: list, api) -> ProductsRaft:
     self_addr = peer_addrs[member_id]
     partners = [a for i, a in enumerate(peer_addrs) if i != member_id]
-    cfg = SyncObjConf(
-        autoTick=True,
-        appendEntriesPeriod=0.005,  # default is 0.05
-        appendEntriesRetryTime=0.05,
-        raftMinTimeout=0.02,  # must be > appendEntriesPeriod * 3 (0.02 * 3 = 0.06)
-        raftMaxTimeout=0.3,
-        connectionRetryTime=1.0,
-        logCompactionMinTime=300,
-        fullDump=None,
-    )
+    cfg = SyncObjConf()
     logger.info(
         "[raft] setup_raft — member_id=%d self=%s partners=%s",
         member_id,
@@ -497,4 +489,20 @@ def setup_raft(member_id: int, peer_addrs: list, api) -> ProductsRaft:
         self_addr,
         partners,
     )
+
+    # Add this
+    def _watch():
+        while True:
+            leader = raft._getLeader()
+            is_leader = raft._isLeader()
+            logger.info(
+                "[raft] leader=%s is_leader=%s ready=%s",
+                leader,
+                is_leader,
+                raft.isReady(),
+            )
+            time.sleep(5)
+
+    threading.Thread(target=_watch, daemon=True).start()
+
     return raft
