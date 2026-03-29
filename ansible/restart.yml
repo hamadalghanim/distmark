@@ -2,6 +2,9 @@
 - name: Restart containers with new env vars
   hosts: all
   become: yes
+  vars:
+    ansible_python_interpreter: /usr/bin/python3
+
   tasks:
     - name: Stop existing container
       docker_container:
@@ -15,5 +18,5 @@
         image: "{{ service }}"
         state: started
         restart_policy: always
-        ports: "{{ [service_port ~ ':5000'] if service_port is defined else [] }}"
+        ports: "{{ service_ports | default([]) }}"
         env: "{{ container_env | default({}) }}"

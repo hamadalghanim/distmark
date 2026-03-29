@@ -26,19 +26,20 @@ all:
           PRODUCTS_RPC_ADDRS: "10.180.0.10:5000,10.180.0.11:5000,10.180.0.12:5000,10.180.0.13:5000,10.180.0.14:5000"
           WSDL_PAYMENT_HOST: "10.180.0.22"
           WSDL_PAYMENT_PORT: "80"
-          RAFT_ADDRS: "10.180.0.10:7000,10.180.0.11:7000,10.180.0.12:7000,10.180.0.13:7000,10.180.0.14:7000"
-          PEER_ADDRS: "10.180.0.15:6100,10.180.0.16:6100,10.180.0.17:6100,10.180.0.18:6103,10.180.0.19:6100"
-
       hosts:
         customer-frontend:
           service: buyer-frontend
           service_ports:
             - "80:5000"
-        products-frontend:
+        seller-frontend:
           service: seller-frontend
           service_ports:
             - "80:5000"
     rpcs:
+      vars:
+        container_env:
+            RAFT_ADDRS: "10.180.0.10:7000,10.180.0.11:7000,10.180.0.12:7000,10.180.0.13:7000,10.180.0.14:7000"
+            PEER_ADDRS: "10.180.0.15:6100,10.180.0.16:6100,10.180.0.17:6100,10.180.0.18:6103,10.180.0.19:6100"
       hosts:
         customers-rpc-0:
           service: customers-database
@@ -47,6 +48,8 @@ all:
             - "6100:6100"
           container_env:
             DB_NAME: "customers"
+            MEMBER_ID: "0"
+            N_MEMBERS: "5"
         customers-rpc-1:
           service: customers-database
           service_ports:
@@ -54,6 +57,8 @@ all:
             - "6100:6100"
           container_env:
             DB_NAME: "customers"
+            MEMBER_ID: "1"
+            N_MEMBERS: "5"
         customers-rpc-2:
           service: customers-database
           service_ports:
@@ -61,6 +66,8 @@ all:
             - "6100:6100"
           container_env:
             DB_NAME: "customers"
+            MEMBER_ID: "2"
+            N_MEMBERS: "5"
         customers-rpc-3:
           service: customers-database
           service_ports:
@@ -68,6 +75,8 @@ all:
             - "6100:6100"
           container_env:
             DB_NAME: "customers"
+            MEMBER_ID: "3"
+            N_MEMBERS: "5"
         customers-rpc-4:
           service: customers-database
           service_ports:
@@ -75,6 +84,8 @@ all:
             - "6100:6100"
           container_env:
             DB_NAME: "customers"
+            MEMBER_ID: "4"
+            N_MEMBERS: "5"
         products-rpc-0:
           service: products-database
           service_ports:
