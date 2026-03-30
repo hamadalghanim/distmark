@@ -36,17 +36,14 @@ all:
           service_ports:
             - "80:5000"
     rpcs:
-      vars:
-        container_env:
-            RAFT_ADDRS: "10.180.0.10:7000,10.180.0.11:7000,10.180.0.12:7000,10.180.0.13:7000,10.180.0.14:7000"
-            PEER_ADDRS: "10.180.0.15:6100,10.180.0.16:6100,10.180.0.17:6100,10.180.0.18:6103,10.180.0.19:6100"
       hosts:
         customers-rpc-0:
           service: customers-database
           service_ports:
             - "5000:5000"
-            - "6100:6100"
+            - "7000:7000/udp"
           container_env:
+            PEER_ADDRS: "10.180.0.15:7000,10.180.0.16:7000,10.180.0.17:7000,10.180.0.18:7000,10.180.0.19:7000"
             DB_NAME: "customers"
             MEMBER_ID: "0"
             N_MEMBERS: "5"
@@ -54,8 +51,9 @@ all:
           service: customers-database
           service_ports:
             - "5000:5000"
-            - "6100:6100"
+            - "7000:7000/udp"
           container_env:
+            PEER_ADDRS: "10.180.0.15:7000,10.180.0.16:7000,10.180.0.17:7000,10.180.0.18:7000,10.180.0.19:7000"
             DB_NAME: "customers"
             MEMBER_ID: "1"
             N_MEMBERS: "5"
@@ -63,8 +61,9 @@ all:
           service: customers-database
           service_ports:
             - "5000:5000"
-            - "6100:6100"
+            - "7000:7000/udp"
           container_env:
+            PEER_ADDRS: "10.180.0.15:7000,10.180.0.16:7000,10.180.0.17:7000,10.180.0.18:7000,10.180.0.19:7000"
             DB_NAME: "customers"
             MEMBER_ID: "2"
             N_MEMBERS: "5"
@@ -72,8 +71,9 @@ all:
           service: customers-database
           service_ports:
             - "5000:5000"
-            - "6100:6100"
+            - "7000:7000/udp"
           container_env:
+            PEER_ADDRS: "10.180.0.15:7000,10.180.0.16:7000,10.180.0.17:7000,10.180.0.18:7000,10.180.0.19:7000"
             DB_NAME: "customers"
             MEMBER_ID: "3"
             N_MEMBERS: "5"
@@ -81,8 +81,9 @@ all:
           service: customers-database
           service_ports:
             - "5000:5000"
-            - "6100:6100"
+            - "7000:7000/udp"
           container_env:
+            PEER_ADDRS: "10.180.0.15:7000,10.180.0.16:7000,10.180.0.17:7000,10.180.0.18:7000,10.180.0.19:7000"
             DB_NAME: "customers"
             MEMBER_ID: "4"
             N_MEMBERS: "5"
@@ -94,6 +95,7 @@ all:
           container_env:
             MEMBER_ID: "0"
             DB_NAME: "products"
+            RAFT_ADDRS: "10.180.0.10:7000,10.180.0.11:7000,10.180.0.12:7000,10.180.0.13:7000,10.180.0.14:7000"
         products-rpc-1:
           service: products-database
           service_ports:
@@ -102,6 +104,7 @@ all:
           container_env:
             MEMBER_ID: "1"
             DB_NAME: "products"
+            RAFT_ADDRS: "10.180.0.10:7000,10.180.0.11:7000,10.180.0.12:7000,10.180.0.13:7000,10.180.0.14:7000"
         products-rpc-2:
           service: products-database
           service_ports:
@@ -110,6 +113,7 @@ all:
           container_env:
             MEMBER_ID: "2"
             DB_NAME: "products"
+            RAFT_ADDRS: "10.180.0.10:7000,10.180.0.11:7000,10.180.0.12:7000,10.180.0.13:7000,10.180.0.14:7000"
         products-rpc-3:
           service: products-database
           service_ports:
@@ -118,6 +122,7 @@ all:
           container_env:
             MEMBER_ID: "3"
             DB_NAME: "products"
+            RAFT_ADDRS: "10.180.0.10:7000,10.180.0.11:7000,10.180.0.12:7000,10.180.0.13:7000,10.180.0.14:7000"
         products-rpc-4:
           service: products-database
           service_ports:
@@ -126,6 +131,7 @@ all:
           container_env:
             MEMBER_ID: "4"
             DB_NAME: "products"
+            RAFT_ADDRS: "10.180.0.10:7000,10.180.0.11:7000,10.180.0.12:7000,10.180.0.13:7000,10.180.0.14:7000"
 
     payments:
       hosts:

@@ -465,7 +465,7 @@ def main():
         "Seller Frontend", "http://localhost:8000", "http://34.106.116.74:80"
     )
     # counts = [1, 10, 100]
-    counts = [1]
+    counts = [10, 100]
 
     print(f"\nBuyer:  {BUYER_BASE_URL}")
     print(f"Seller: {SELLER_BASE_URL}")
