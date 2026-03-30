@@ -459,12 +459,13 @@ def select_environment(service_name, local_url, gcp_url):
 def main():
     global BUYER_BASE_URL, SELLER_BASE_URL
     BUYER_BASE_URL = select_environment(
-        "Buyer Frontend", "http://localhost:8001", "http://34.29.137.149:80"
+        "Buyer Frontend", "http://localhost:8001", "http://34.106.251.143:80"
     )
     SELLER_BASE_URL = select_environment(
-        "Seller Frontend", "http://localhost:8000", "http://34.70.9.107:80"
+        "Seller Frontend", "http://localhost:8000", "http://34.106.116.74:80"
     )
-    counts = [1, 10, 100]
+    # counts = [1, 10, 100]
+    counts = [1]
 
     print(f"\nBuyer:  {BUYER_BASE_URL}")
     print(f"Seller: {SELLER_BASE_URL}")

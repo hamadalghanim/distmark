@@ -35,9 +35,6 @@ class Member:
 
         self._sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self._sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        #   File "/app/sequencer/member.py", line 38, in __init__
-        # self._sock.bind(peers[member_id])
-        # OSError: [Errno 99] Cannot assign requested address
 
         host, port = peers[member_id]
         self._sock.bind(("0.0.0.0", int(port)))
