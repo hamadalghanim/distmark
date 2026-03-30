@@ -29,10 +29,10 @@ from dataclasses import dataclass
 #   H   payload_len
 #   …   payload
 
-MSG_REQUEST = 0x01
-MSG_SEQUENCE = 0x02
-MSG_RETRANSMIT_REQ = 0x03
-MSG_RETRANSMIT_SEQ = 0x04
+MSG_REQUEST = 0x01  # to send the payload to all members
+MSG_SEQUENCE = 0x02  # set the seq for the payload
+MSG_RETRANSMIT_REQ = 0x03  # to request a retransmit of a missing RequestMessage
+MSG_RETRANSMIT_SEQ = 0x04  # to request a retransmit of a missing SequenceMessage
 
 
 @dataclass
