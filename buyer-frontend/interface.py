@@ -1,6 +1,7 @@
 import itertools
 
 import grpc
+import ipaddress
 from proto import customers_pb2
 from proto import customers_pb2_grpc
 from proto import products_pb2
@@ -28,12 +29,35 @@ class RoundRobinStub:
 
     def __getattr__(self, name):
         return getattr(next(self._stubs), name)
-    
 
 
-_products_stub = RoundRobinStub(products_pb2_grpc.SellerServiceStub, PRODUCTS_GRPC_ADDRESSES)
-_customers_stub = RoundRobinStub(customers_pb2_grpc.CustomersServiceStub, CUSTOMERS_GRPC_ADDRESSES)
+def _is_ip_address(addr: str) -> bool:
+    host = addr.split(":")[0]  # strip port
+    try:
+        ipaddress.ip_address(host)
+        return True
+    except ValueError:
+        return False
 
+
+def _make_stub(stub_class, addresses: str):
+    addrs = [a.strip() for a in addresses.split(",")]
+    if _is_ip_address(addrs[0]):
+        channel = grpc.insecure_channel(
+            f"ipv4:///{','.join(addrs)}",
+            options=[("grpc.lb_policy_name", "round_robin")],
+        )
+        return stub_class(channel)
+    return RoundRobinStub(stub_class, addresses)
+
+
+_products_stub = _make_stub(
+    products_pb2_grpc.SellerServiceStub, PRODUCTS_GRPC_ADDRESSES
+)
+
+_customers_stub = _make_stub(
+    customers_pb2_grpc.CustomersServiceStub, CUSTOMERS_GRPC_ADDRESSES
+)
 
 # soap setup
 WSDL_PAYMENT_HOST = os.getenv("WSDL_PAYMENT_HOST", "payments-api")

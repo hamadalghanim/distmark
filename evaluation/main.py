@@ -469,7 +469,7 @@ def main():
     SELLER_BASE_URL = select_environment(
         "Seller Frontend", "http://localhost:8000", "http://34.106.116.74:80"
     )
-    counts = [100]
+    counts = [1, 10, 100]
 
     print(f"\nBuyer:  {BUYER_BASE_URL}")
     print(f"Seller: {SELLER_BASE_URL}")
@@ -515,7 +515,7 @@ def main():
                 k: EndpointStats(v.count, v.total_ms, v.errors)
                 for k, v in _client_stats.items()
             }
-        with open("report_one_seller_one_buyer_down.txt", "a") as f:
+        with open("report_one_seller_follower_down.txt", "a") as f:
             print_scenario_report(
                 scenario, clients, elapsed, endpoint_snapshot, client_snapshot, file=f
             )

@@ -1,7 +1,7 @@
 import itertools
 import os
 import grpc
-
+import ipaddress
 
 # Import the generated protobuf classes
 from proto import products_pb2
@@ -24,7 +24,27 @@ class RoundRobinStub:
         return getattr(next(self._stubs), name)
 
 
-_stub = RoundRobinStub(products_pb2_grpc.SellerServiceStub, PRODUCTS_GRPC_ADDRESSES)
+def _is_ip_address(addr: str) -> bool:
+    host = addr.split(":")[0]  # strip port
+    try:
+        ipaddress.ip_address(host)
+        return True
+    except ValueError:
+        return False
+
+
+def _make_stub(stub_class, addresses: str):
+    addrs = [a.strip() for a in addresses.split(",")]
+    if _is_ip_address(addrs[0]):
+        channel = grpc.insecure_channel(
+            f"ipv4:///{','.join(addrs)}",
+            options=[("grpc.lb_policy_name", "round_robin")],
+        )
+        return stub_class(channel)
+    return RoundRobinStub(stub_class, addresses)
+
+
+_stub = _make_stub(products_pb2_grpc.SellerServiceStub, PRODUCTS_GRPC_ADDRESSES)
 
 
 def _item_to_dict(item):
