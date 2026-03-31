@@ -515,10 +515,11 @@ def main():
                 k: EndpointStats(v.count, v.total_ms, v.errors)
                 for k, v in _client_stats.items()
             }
-        with open("report_one_seller_follower_down.txt", "a") as f:
+        with open("report_one_seller_leader_down.txt", "a") as f:
             print_scenario_report(
                 scenario, clients, elapsed, endpoint_snapshot, client_snapshot, file=f
             )
+        _canceled = False  # reset for next scenario
 
 
 if __name__ == "__main__":

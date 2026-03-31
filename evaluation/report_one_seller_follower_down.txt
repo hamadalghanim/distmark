@@ -1,0 +1,122 @@
+
+══════════════════════════════════════════════════════════════════════
+  SCENARIO 0  —  1 buyer(s) + 1 seller(s)
+══════════════════════════════════════════════════════════════════════
+  Elapsed:    144.23s
+  Total ops:  2000  (0 errors)
+  Throughput: 13.9 ops/sec
+
+  ENDPOINT                                   CALLS    AVG ms    ERR
+  ---------------------------------------- ------- --------- ------
+  buyer  DELETE /cart/items/{id}                97      58.3      0
+  buyer  GET /cart                              76      51.3      0
+  buyer  GET /categories                        80      62.8      0
+  buyer  GET /items/search                      79      39.3      0
+  buyer  GET /items/{id}                        86      54.0      0
+  buyer  GET /purchases                         99      49.1      0
+  buyer  GET /seller/{id}/rating                78      52.4      0
+  buyer  POST /account/login                     1      73.3      0
+  buyer  POST /account/logout                    1      69.6      0
+  buyer  POST /account/register                  1     107.2      0
+  buyer  POST /cart/clear                       92      58.5      0
+  buyer  POST /cart/items                       71      61.7      0
+  buyer  POST /cart/save                        68      58.8      0
+  buyer  POST /feedback                         98      59.3      0
+  buyer  POST /purchase                         73      61.0      0
+  seller GET /categories                       173      49.9      0
+  seller GET /items                            179      56.5      0
+  seller GET /seller/rating                    162      50.6      0
+  seller POST /account/login                     1     235.9      0
+  seller POST /account/logout                    1     269.7      0
+  seller POST /account/register                  1     263.4      0
+  seller POST /items                           146     244.1      0
+  seller PUT /items/price                      177     244.9      0
+  seller PUT /items/quantity                   160     233.9      0
+
+  TOP 5 SLOWEST CLIENTS (avg ms)
+  CLIENT                                CALLS    AVG ms    ERR
+  ----------------------------------- ------- --------- ------
+  seller/s0_u0                           1000     144.1      0
+  buyer/s0_u0                            1000      55.6      0
+
+
+══════════════════════════════════════════════════════════════════════
+  SCENARIO 1  —  10 buyer(s) + 10 seller(s)
+══════════════════════════════════════════════════════════════════════
+  Elapsed:    305.37s
+  Total ops:  20000  (0 errors)
+  Throughput: 65.5 ops/sec
+
+  ENDPOINT                                   CALLS    AVG ms    ERR
+  ---------------------------------------- ------- --------- ------
+  buyer  DELETE /cart/items/{id}               865     114.5      0
+  buyer  GET /cart                             816      86.7      0
+  buyer  GET /categories                       850      75.1      0
+  buyer  GET /items/search                     831      65.8      0
+  buyer  GET /items/{id}                       828      77.2      0
+  buyer  GET /purchases                        817      83.3      0
+  buyer  GET /seller/{id}/rating               871      84.3      0
+  buyer  POST /account/login                    10     123.6      0
+  buyer  POST /account/logout                   10     333.5      0
+  buyer  POST /account/register                 10     108.7      0
+  buyer  POST /cart/clear                      761     118.3      0
+  buyer  POST /cart/items                      835     122.7      0
+  buyer  POST /cart/save                       826     120.9      0
+  buyer  POST /feedback                        861      95.3      0
+  buyer  POST /purchase                        809      98.4      0
+  seller GET /categories                      1622     192.6      0
+  seller GET /items                           1646     204.6      0
+  seller GET /seller/rating                   1605     196.0      0
+  seller POST /account/login                    10     508.3      0
+  seller POST /account/logout                   10     350.2      0
+  seller POST /account/register                 10     475.4      0
+  seller POST /items                          1690     404.5      0
+  seller PUT /items/price                     1721     393.8      0
+  seller PUT /items/quantity                  1686     396.8      0
+
+  TOP 5 SLOWEST CLIENTS (avg ms)
+  CLIENT                                CALLS    AVG ms    ERR
+  ----------------------------------- ------- --------- ------
+  seller/s1_u5                           1000     304.9      0
+  seller/s1_u4                           1000     302.4      0
+  seller/s1_u2                           1000     301.5      0
+  seller/s1_u1                           1000     301.4      0
+  seller/s1_u0                           1000     301.2      0
+
+
+══════════════════════════════════════════════════════════════════════
+  SCENARIO 2  —  100 buyer(s) + 100 seller(s)  # canceled early, buyer queue was running too long all requests were timing out. sellers kept timing out from the start
+══════════════════════════════════════════════════════════════════════
+  Elapsed:    432.04s
+  Total ops:  8782  (7679 errors)
+  Throughput: 20.3 ops/sec
+
+  ENDPOINT                                   CALLS    AVG ms    ERR
+  ---------------------------------------- ------- --------- ------
+  buyer  DELETE /cart/items/{id}               719     790.0    629
+  buyer  GET /cart                             764     783.8    591
+  buyer  GET /categories                       683     785.7    615
+  buyer  GET /items/search                     706     774.2    644
+  buyer  GET /items/{id}                       725     769.6    613
+  buyer  GET /purchases                        689     774.5    648
+  buyer  GET /seller/{id}/rating               732     774.7    619
+  buyer  POST /account/login                   100    1246.0      0
+  buyer  POST /account/logout                    0       0.0    100
+  buyer  POST /account/register                100     606.5      0
+  buyer  POST /cart/clear                      652     800.7    624
+  buyer  POST /cart/items                      725     794.9    566
+  buyer  POST /cart/save                       701     792.0    632
+  buyer  POST /feedback                        685     788.1    627
+  buyer  POST /purchase                        744     789.9    628
+  seller POST /account/login                     0       0.0    100
+  seller POST /account/register                 57    1596.2     43
+
+  TOP 5 SLOWEST CLIENTS (avg ms)
+  CLIENT                                CALLS    AVG ms    ERR
+  ----------------------------------- ------- --------- ------
+  seller/s2_u56                             1    2937.5      1
+  seller/s2_u51                             1    2932.9      1
+  seller/s2_u57                             1    2927.2      1
+  seller/s2_u54                             1    2920.0      1
+  seller/s2_u38                             1    2709.0      1
+
