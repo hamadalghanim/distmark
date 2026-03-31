@@ -35,6 +35,7 @@ class EndpointStats:
 
 # Global stats: { endpoint_key -> EndpointStats }
 _stats_lock = threading.Lock()
+_canceled = False
 _endpoint_stats: dict[str, EndpointStats] = defaultdict(EndpointStats)
 
 # Per-client stats: { client_id -> EndpointStats (aggregate) }
@@ -69,7 +70,7 @@ thread_local = threading.local()
 def get_session():
     if not hasattr(thread_local, "session"):
         s = requests.Session()
-        retry = Retry(total=3, backoff_factor=0.1)
+        retry = Retry(total=1, backoff_factor=0.05)
         adapter = HTTPAdapter(pool_connections=10, pool_maxsize=20, max_retries=retry)
         s.mount("http://", adapter)
         s.mount("https://", adapter)
@@ -85,7 +86,7 @@ def perform_random_buyer_cmd(session_id: str, client_id: str):
             lambda: session.get(
                 f"{BUYER_BASE_URL}/items/2",
                 params={"session_id": session_id},
-                timeout=10,
+                timeout=3,
             ),
         ),
         (
@@ -93,7 +94,7 @@ def perform_random_buyer_cmd(session_id: str, client_id: str):
             lambda: session.get(
                 f"{BUYER_BASE_URL}/categories",
                 params={"session_id": session_id},
-                timeout=10,
+                timeout=3,
             ),
         ),
         (
@@ -105,7 +106,7 @@ def perform_random_buyer_cmd(session_id: str, client_id: str):
                     "category_id": "0",
                     "keywords": "tech",
                 },
-                timeout=10,
+                timeout=3,
             ),
         ),
         (
@@ -113,7 +114,7 @@ def perform_random_buyer_cmd(session_id: str, client_id: str):
             lambda: session.post(
                 f"{BUYER_BASE_URL}/feedback",
                 json={"session_id": session_id, "item_id": "2", "feedback": "1"},
-                timeout=10,
+                timeout=3,
             ),
         ),
         (
@@ -121,7 +122,7 @@ def perform_random_buyer_cmd(session_id: str, client_id: str):
             lambda: session.get(
                 f"{BUYER_BASE_URL}/seller/1/rating",
                 params={"session_id": session_id},
-                timeout=10,
+                timeout=3,
             ),
         ),
         (
@@ -129,7 +130,7 @@ def perform_random_buyer_cmd(session_id: str, client_id: str):
             lambda: session.post(
                 f"{BUYER_BASE_URL}/cart/clear",
                 json={"session_id": session_id},
-                timeout=10,
+                timeout=3,
             ),
         ),
         (
@@ -137,7 +138,7 @@ def perform_random_buyer_cmd(session_id: str, client_id: str):
             lambda: session.post(
                 f"{BUYER_BASE_URL}/cart/items",
                 json={"session_id": session_id, "item_id": "1", "quantity": "1"},
-                timeout=10,
+                timeout=3,
             ),
         ),
         (
@@ -145,7 +146,7 @@ def perform_random_buyer_cmd(session_id: str, client_id: str):
             lambda: session.delete(
                 f"{BUYER_BASE_URL}/cart/items/1",
                 json={"session_id": session_id},
-                timeout=10,
+                timeout=3,
             ),
         ),
         (
@@ -153,13 +154,13 @@ def perform_random_buyer_cmd(session_id: str, client_id: str):
             lambda: session.post(
                 f"{BUYER_BASE_URL}/cart/save",
                 json={"session_id": session_id},
-                timeout=10,
+                timeout=3,
             ),
         ),
         (
             "GET /cart",
             lambda: session.get(
-                f"{BUYER_BASE_URL}/cart", params={"session_id": session_id}, timeout=10
+                f"{BUYER_BASE_URL}/cart", params={"session_id": session_id}, timeout=3
             ),
         ),
         (
@@ -172,7 +173,7 @@ def perform_random_buyer_cmd(session_id: str, client_id: str):
                     "expiration_date": "12/25",
                     "security_code": "123",
                 },
-                timeout=10,
+                timeout=3,
             ),
         ),
         (
@@ -180,7 +181,7 @@ def perform_random_buyer_cmd(session_id: str, client_id: str):
             lambda: session.get(
                 f"{BUYER_BASE_URL}/purchases",
                 params={"session_id": session_id},
-                timeout=10,
+                timeout=3,
             ),
         ),
     ]
@@ -199,7 +200,7 @@ def perform_random_seller_cmd(session_id: str, item_id, client_id: str):
             lambda: session.get(
                 f"{SELLER_BASE_URL}/categories",
                 params={"session_id": session_id},
-                timeout=10,
+                timeout=3,
             ),
         ),
         (
@@ -207,7 +208,7 @@ def perform_random_seller_cmd(session_id: str, item_id, client_id: str):
             lambda: session.get(
                 f"{SELLER_BASE_URL}/seller/rating",
                 params={"session_id": session_id},
-                timeout=10,
+                timeout=3,
             ),
         ),
         (
@@ -223,7 +224,7 @@ def perform_random_seller_cmd(session_id: str, item_id, client_id: str):
                     "price": "3.99",
                     "qty": "20",
                 },
-                timeout=10,
+                timeout=3,
             ),
         ),
         (
@@ -231,7 +232,7 @@ def perform_random_seller_cmd(session_id: str, item_id, client_id: str):
             lambda: session.get(
                 f"{SELLER_BASE_URL}/items",
                 params={"session_id": session_id},
-                timeout=10,
+                timeout=3,
             ),
         ),
         (
@@ -243,7 +244,7 @@ def perform_random_seller_cmd(session_id: str, item_id, client_id: str):
                     "item_id": str(item_id),
                     "new_price": "4.99",
                 },
-                timeout=10,
+                timeout=3,
             ),
         ),
         (
@@ -255,7 +256,7 @@ def perform_random_seller_cmd(session_id: str, item_id, client_id: str):
                     "item_id": str(item_id),
                     "new_qty": "900",
                 },
-                timeout=10,
+                timeout=3,
             ),
         ),
     ]
@@ -278,7 +279,7 @@ def run_seller_client(id: int, scenario: int):
             lambda: session.post(
                 f"{SELLER_BASE_URL}/account/register",
                 json={"name": "jeff", "username": unique_id, "password": "password"},
-                timeout=10,
+                timeout=3,
             ),
         )
 
@@ -289,7 +290,7 @@ def run_seller_client(id: int, scenario: int):
             login_response = session.post(
                 f"{SELLER_BASE_URL}/account/login",
                 json={"username": unique_id, "password": "password"},
-                timeout=10,
+                timeout=3,
             )
 
         _timed("seller POST /account/login", client_id, do_login)
@@ -316,7 +317,7 @@ def run_seller_client(id: int, scenario: int):
                         "price": "3.99",
                         "qty": "20",
                     },
-                    timeout=10,
+                    timeout=3,
                 )
 
             _timed("seller POST /items", client_id, do_register)
@@ -325,6 +326,8 @@ def run_seller_client(id: int, scenario: int):
                 item_id = register_response.json().get("item_id", 1)
 
             for i in range(996):
+                if _canceled:
+                    break
                 if (i + 4) % 100 == 0:
                     print(f"  Seller {id} {i + 4}/1000")
                 perform_random_seller_cmd(session_id, item_id or 1, client_id)
@@ -335,7 +338,7 @@ def run_seller_client(id: int, scenario: int):
                 lambda: session.post(
                     f"{SELLER_BASE_URL}/account/logout",
                     json={"session_id": session_id},
-                    timeout=10,
+                    timeout=3,
                 ),
             )
         else:
@@ -358,7 +361,7 @@ def run_buyer_client(id: int, scenario: int):
             lambda: session.post(
                 f"{BUYER_BASE_URL}/account/register",
                 json={"name": "jeff", "username": unique_id, "password": "password"},
-                timeout=10,
+                timeout=3,
             ),
         )
 
@@ -369,7 +372,7 @@ def run_buyer_client(id: int, scenario: int):
             login_response = session.post(
                 f"{BUYER_BASE_URL}/account/login",
                 json={"username": unique_id, "password": "password"},
-                timeout=10,
+                timeout=3,
             )
 
         _timed("buyer  POST /account/login", client_id, do_login)
@@ -381,6 +384,8 @@ def run_buyer_client(id: int, scenario: int):
                 return
 
             for i in range(997):
+                if _canceled:
+                    break
                 if (i + 3) % 100 == 0:
                     print(f"  Buyer  {id} {i + 3}/1000")
                 perform_random_buyer_cmd(session_id, client_id)
@@ -391,7 +396,7 @@ def run_buyer_client(id: int, scenario: int):
                 lambda: session.post(
                     f"{BUYER_BASE_URL}/account/logout",
                     json={"session_id": session_id},
-                    timeout=10,
+                    timeout=3,
                 ),
             )
         else:
@@ -464,8 +469,7 @@ def main():
     SELLER_BASE_URL = select_environment(
         "Seller Frontend", "http://localhost:8000", "http://34.106.116.74:80"
     )
-    # counts = [1, 10, 100]
-    counts = [10, 100]
+    counts = [100]
 
     print(f"\nBuyer:  {BUYER_BASE_URL}")
     print(f"Seller: {SELLER_BASE_URL}")
@@ -490,6 +494,13 @@ def main():
 
         for t in threads:
             t.start()
+        try:
+            while any(t.is_alive() for t in threads):
+                time.sleep(1)
+        except KeyboardInterrupt:
+            print("Interrupted, waiting for threads to finish...")
+            global _canceled
+            _canceled = True
         for t in threads:
             t.join()
 
@@ -504,7 +515,7 @@ def main():
                 k: EndpointStats(v.count, v.total_ms, v.errors)
                 for k, v in _client_stats.items()
             }
-        with open("report.txt", "a") as f:
+        with open("report_one_seller_one_buyer_down.txt", "a") as f:
             print_scenario_report(
                 scenario, clients, elapsed, endpoint_snapshot, client_snapshot, file=f
             )
