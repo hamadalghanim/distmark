@@ -84,6 +84,7 @@ type RegisterItemRequest struct {
 	Price     string `json:"price"`
 	Qty       string `json:"qty"`
 	SessionID int    `json:"session_id"`
+	Keywords  string `json:"keywords"`
 }
 
 type RegisterItemResponse struct {

@@ -149,12 +149,16 @@ func RegisterItemForSale(reader *bufio.Reader) {
 	fmt.Print("Quantity: ")
 	qty, _ := reader.ReadString('\n')
 
+	// fmt.Print("Keywords: ")
+	keywords := buildKeywords(reader)
+
 	req := RegisterItemRequest{
 		Name:      strings.TrimSpace(name),
 		Category:  strings.TrimSpace(category),
 		Price:     strings.TrimSpace(price),
 		Qty:       strings.TrimSpace(qty),
 		SessionID: SessionId,
+		Keywords:  keywords,
 	}
 
 	resp, err := sendPostRequest("/items", req)
